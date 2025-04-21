@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Davidovici Software - Innovative web development tailored for your business." />
+    <meta property="og:title" content="Davidovici Software">
+    <meta property="og:description" content="Web development solutions that are professional, clean, and tailored to your needs.">
+    <meta property="og:image" content="/images/hero-bg.jpg">
+    <meta property="og:type" content="website">
+    <title>Davidovici Software</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="/js/main.js" defer></script>
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="stylesheet" href="/css/tailwind.css">
+    <style>
+        body {
+          font-family: 'JetBrains Mono', monospace;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .animate-fadeIn {
+            animation: fadeIn 1s ease-out forwards;
+        }
+        .delay-150 { animation-delay: 0.15s; }
+        .delay-300 { animation-delay: 0.3s; }
+        .delay-450 { animation-delay: 0.45s; }
+        .delay-600 { animation-delay: 0.6s; }
+        .delay-750 { animation-delay: 0.75s; }
+        .delay-900 { animation-delay: 0.9s; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 dark:bg-gray-900 dark:text-gray-100">
+<!-- Navbar -->
+<nav class="p-6 flex justify-between items-center">
+    <div class="text-xl font-bold">Davidovici Software</div>
+    <div>
+        <a href="#hero" class="px-4 hover:text-blue-500">Home</a>
+        <a href="#services" class="px-4 hover:text-blue-500">Services</a>
+        <a href="#about" class="px-4 hover:text-blue-500">About</a>
+        <a href="#contact" class="px-4 hover:text-blue-500">Contact</a>
+    </div>
+</nav>
+
+<section id="hero" class="relative min-h-screen flex items-center justify-center text-center" style="background: url('/images/hero-bg.jpg') no-repeat center center/cover;">
+    <!-- Gradient overlay -->
+    <div class="absolute inset-0 bg-gradient-to-b from-gray-900/80 to-gray-800/90 z-0"></div>
+
+    <div class="relative z-10 max-w-3xl px-4 animate-fadeInUp">
+        <h1 class="text-5xl font-bold mb-4 text-white drop-shadow-md">Welcome to Davidovici Software</h1>
+        <p class="text-xl mb-8 text-gray-300">Innovative Web Development Solutions Tailored For You</p>
+        <a href="#contact" class="px-8 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition duration-300 shadow-lg">
+            Get In Touch
+        </a>
+    </div>
+</section>
+
+<!-- Services Section -->
+<section id="services" class="py-20 bg-gray-800" data-reveal>
+    <div class="container mx-auto px-6 text-center">
+        <h2 class="text-3xl font-bold mb-12 animate-fadeIn">Our Services</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="p-6 bg-gray-700 rounded-lg shadow hover:shadow-lg transform hover:-translate-y-1 transition animate-fadeIn delay-150">
+                <h3 class="text-xl font-semibold mb-4">Web Development</h3>
+                <p>Modern, responsive websites tailored to your business needs.</p>
+            </div>
+            <div class="p-6 bg-gray-700 rounded-lg shadow hover:shadow-lg transform hover:-translate-y-1 transition animate-fadeIn delay-300">
+                <h3 class="text-xl font-semibold mb-4">UI/UX Design</h3>
+                <p>Crafting visually stunning and user-friendly interfaces.</p>
+            </div>
+            <div class="p-6 bg-gray-700 rounded-lg shadow hover:shadow-lg transform hover:-translate-y-1 transition animate-fadeIn delay-450">
+                <h3 class="text-xl font-semibold mb-4">Consulting</h3>
+                <p>Offering expert advice to elevate your digital presence.</p>
+            </div>
+            <div class="p-6 bg-gray-700 rounded-lg shadow hover:shadow-lg transform hover:-translate-y-1 transition animate-fadeIn delay-600">
+                <h3 class="text-xl font-semibold mb-4">Web Scraping</h3>
+                <p>Extracting and structuring data from websites for business intelligence.</p>
+            </div>
+            <div class="p-6 bg-gray-700 rounded-lg shadow hover:shadow-lg transform hover:-translate-y-1 transition animate-fadeIn delay-750">
+                <h3 class="text-xl font-semibold mb-4">Data Analysis</h3>
+                <p>Turning raw data into insights through analysis and visualization.</p>
+            </div>
+            <div class="p-6 bg-gray-700 rounded-lg shadow hover:shadow-lg transform hover:-translate-y-1 transition animate-fadeIn delay-900">
+                <h3 class="text-xl font-semibold mb-4">Automation</h3>
+                <p>Custom scripts and workflows to reduce manual effort and save time.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- About Section -->
+<section id="about" class="py-20">
+    <div class="container mx-auto px-6 text-center">
+        <h2 class="text-3xl font-bold mb-12 animate-fadeIn">About Us</h2>
+        <p class="mb-6 animate-fadeIn delay-150">
+            At Davidovici Software, we are passionate about crafting high-quality web solutions.
+        </p>
+        <p class="animate-fadeIn delay-300">
+            Our mission is to help businesses grow by providing cutting-edge web development and design services that are both functional and aesthetically pleasing.
+        </p>
+    </div>
+</section>
+
+<!-- Contact Section -->
+<section id="contact" class="py-20 bg-gray-800">
+    <div class="container mx-auto px-6 text-center">
+        <h2 class="text-3xl font-bold mb-12 animate-fadeIn">Contact Us</h2>
+        <div class="max-w-xl mx-auto bg-gray-700 p-8 rounded-lg shadow animate-fadeIn delay-150">
+            <p class="text-lg">
+                You can reach us directly at
+                <a href="mailto:yaakov@davidovicisoftware.com" class="text-blue-400 underline hover:text-blue-600">
+                    yaakov@davidovicisoftware.com
+                </a>.
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="py-6 bg-gray-900 text-center">
+    <p class="text-sm">© 2025 Davidovici Software. All rights reserved.</p>
+</footer>
+</body>
+</html>

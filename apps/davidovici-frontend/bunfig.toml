@@ -1,0 +1,2 @@
+name = "davidovici-frontend"
+entry = "server.ts"

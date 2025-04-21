@@ -1,0 +1,11 @@
+{
+  "name": "davidovici-frontend",
+  "version": "1.0.0",
+  "main": "server.ts",
+  "scripts": {
+    "dev": "bun run server.ts"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

@@ -1,0 +1,25 @@
+# Node/Bun
+node_modules
+bun.lockb
+
+# Env files
+.env
+
+# OS clutter
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Docker artifacts
+*.local
+*.pid
+*.sock
+
+# Built files (if building)
+dist/
+build/
+
+.idea
