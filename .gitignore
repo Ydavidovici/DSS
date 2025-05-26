@@ -4,6 +4,8 @@ bun.lockb
 
 # Env files
 .env
+.env.local
+.env.production
 
 # OS clutter
 .DS_Store
