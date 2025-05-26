@@ -1,6 +1,10 @@
 {
   "name": "klvn-frontend",
+  "version": "0.0.2",
   "module": "index.ts",
+  "scripts": {
+    "start": "bun run server.ts"
+  },
   "type": "module",
   "private": true,
   "devDependencies": {
