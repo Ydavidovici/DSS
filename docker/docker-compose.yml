@@ -3,14 +3,14 @@ version: "3.8"
 services:
   auth-service:
     build:
-      context: ../apps/auth-service
+      context: ../apps/auth
     ports:
       - "5000:5000"
     env_file:
-      - ../apps/auth-service/.env
+      - ../apps/auth/.env
 
   davidovici-frontend:
     build:
-      context: ../apps/davidovici-frontend
+      context: ../apps/ds-frontend
     ports:
       - "3000:3000"
