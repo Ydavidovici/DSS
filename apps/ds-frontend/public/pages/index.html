@@ -1,193 +1,184 @@
 <!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Davidovici Software - Innovative web development tailored for your business." />
-    <meta property="og:title" content="Davidovici Software">
-    <meta property="og:description" content="Web development solutions that are professional, clean, and tailored to your needs.">
-    <meta property="og:image" content="/images/hero-bg.jpg">
-    <meta property="og:type" content="website">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+            name="description"
+            content="Davidovici Software - Innovative web development tailored for your business."
+    />
+    <meta property="og:title" content="Davidovici Software" />
+    <meta
+            property="og:description"
+            content="Web development solutions that are professional, clean, and tailored to your needs."
+    />
+    <meta property="og:image" content="/images/hero-bg.jpg" />
+    <meta property="og:type" content="website" />
     <title>Davidovici Software</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Fonts, JS, Favicon, and your global CSS placeholder -->
+    <link
+            href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap"
+            rel="stylesheet"
+    />
     <script src="/js/globals.js" defer></script>
     <link rel="icon" href="/favicon.ico" />
-    <link rel="stylesheet" href="/css/globals.css">
-    <style>
-        body {
-          font-family: 'JetBrains Mono', monospace;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        .animate-fadeIn {
-            animation: fadeIn 1s ease-out forwards;
-        }
-        .delay-150 { animation-delay: 0.15s; }
-        .delay-300 { animation-delay: 0.3s; }
-        .delay-450 { animation-delay: 0.45s; }
-        .delay-600 { animation-delay: 0.6s; }
-        .delay-750 { animation-delay: 0.75s; }
-        .delay-900 { animation-delay: 0.9s; }
-    </style>
+    <link rel="stylesheet" href="/css/globals.css" />
 </head>
-<body class="bg-gray-900 text-gray-100 dark:bg-gray-900 dark:text-gray-100">
-<!-- Navbar -->
-<nav class="p-6 flex justify-between items-center">
-    <div class="text-xl font-bold">Davidovici Software</div>
-    <div>
-        <a href="#hero" class="px-4 hover:text-blue-500">Home</a>
-        <a href="#services" class="px-4 hover:text-blue-500">Services</a>
-        <a href="#about" class="px-4 hover:text-blue-500">About</a>
-        <a href="#contact" class="px-4 hover:text-blue-500">Contact</a>
-    </div>
+<body>
+<!-- NAVBAR -->
+<nav id="navbar">
+    <div id="navbar-logo">Davidovici Software</div>
+    <ul id="navbar-links">
+        <li><a href="#hero">Home</a></li>
+        <li><a href="#services">Services</a></li>
+        <li><a href="#about">About</a></li>
+        <li><a href="#contact">Contact</a></li>
+    </ul>
 </nav>
 
-<section id="hero" class="relative min-h-screen flex items-center justify-center text-center" style="background: url('/images/hero-bg.jpg') no-repeat center center/cover;">
-    <!-- Gradient overlay -->
-    <div class="absolute inset-0 bg-gradient-to-b from-gray-900/80 to-gray-800/90 z-0"></div>
-
-    <div class="relative z-10 max-w-3xl px-4 animate-fadeInUp">
-        <h1 class="text-5xl font-bold mb-4 text-white drop-shadow-md">Welcome to Davidovici Software</h1>
-        <p class="text-xl mb-8 text-gray-300">Innovative Solutions Tailored For You</p>
-        <a href="#contact" class="px-8 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 transition duration-300 shadow-lg">
-            Get In Touch
-        </a>
+<!-- HERO SECTION -->
+<section id="hero">
+    <div id="hero-overlay"></div>
+    <div id="hero-content">
+        <h1 id="hero-title">Welcome to Davidovici Software</h1>
+        <p id="hero-subtitle">Innovative Solutions Tailored For You</p>
+        <a href="#contact" id="hero-cta">Get In Touch</a>
     </div>
 </section>
 
-<!-- Services Section -->
-<section id="services" class="py-20 bg-gray-800" data-reveal>
-    <div class="container mx-auto px-6 text-center">
-        <h2 class="text-3xl font-bold mb-12 animate-fadeIn">Our Services</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div class="p-6 bg-gray-700 rounded-lg shadow hover:shadow-lg transform hover:-translate-y-1 transition animate-fadeIn delay-150">
-                <h3 class="text-xl font-semibold mb-4">Web Development</h3>
-                <p>Modern, responsive websites tailored to your business needs.</p>
-            </div>
-            <div class="p-6 bg-gray-700 rounded-lg shadow hover:shadow-lg transform hover:-translate-y-1 transition animate-fadeIn delay-300">
-                <h3 class="text-xl font-semibold mb-4">UI/UX Design</h3>
-                <p>Crafting visually stunning and user-friendly interfaces.</p>
-            </div>
-            <div class="p-6 bg-gray-700 rounded-lg shadow hover:shadow-lg transform hover:-translate-y-1 transition animate-fadeIn delay-450">
-                <h3 class="text-xl font-semibold mb-4">Consulting</h3>
-                <p>Offering expert advice to elevate your digital presence.</p>
-            </div>
-            <div class="p-6 bg-gray-700 rounded-lg shadow hover:shadow-lg transform hover:-translate-y-1 transition animate-fadeIn delay-600">
-                <h3 class="text-xl font-semibold mb-4">Web Scraping</h3>
-                <p>Extracting and structuring data from websites for business intelligence.</p>
-            </div>
-            <div class="p-6 bg-gray-700 rounded-lg shadow hover:shadow-lg transform hover:-translate-y-1 transition animate-fadeIn delay-750">
-                <h3 class="text-xl font-semibold mb-4">Data Analysis</h3>
-                <p>Turning raw data into insights through analysis and visualization.</p>
-            </div>
-            <div class="p-6 bg-gray-700 rounded-lg shadow hover:shadow-lg transform hover:-translate-y-1 transition animate-fadeIn delay-900">
-                <h3 class="text-xl font-semibold mb-4">Automation</h3>
-                <p>Custom scripts and workflows to reduce manual effort and save time.</p>
-            </div>
+<!-- SERVICES SECTION -->
+<section id="services">
+    <h2 id="services-heading">Our Services</h2>
+    <div id="services-grid">
+        <div class="service-card">
+            <h3>Web Development</h3>
+            <p>Modern, responsive websites tailored to your business needs.</p>
+        </div>
+        <div class="service-card">
+            <h3>UI/UX Design</h3>
+            <p>Crafting visually stunning and user-friendly interfaces.</p>
+        </div>
+        <div class="service-card">
+            <h3>Consulting</h3>
+            <p>Offering expert advice to elevate your digital presence.</p>
+        </div>
+        <div class="service-card">
+            <h3>Web Scraping</h3>
+            <p>Extracting and structuring data from websites for business intelligence.</p>
+        </div>
+        <div class="service-card">
+            <h3>Data Analysis</h3>
+            <p>Turning raw data into insights through analysis and visualization.</p>
+        </div>
+        <div class="service-card">
+            <h3>Automation</h3>
+            <p>Custom scripts and workflows to reduce manual effort and save time.</p>
         </div>
     </div>
 </section>
 
-<!-- About Section -->
-<section id="about" class="py-20 bg-gray-800">
-    <div class="container mx-auto px-6 text-center">
-        <h2 class="text-3xl font-bold mb-12 animate-fadeIn text-gray-100">About Us</h2>
+<!-- ABOUT SECTION -->
+<section id="about">
+    <h2 id="about-heading">About Us</h2>
+    <p class="about-paragraph">
+        At <strong>Davidovici Software</strong>, we’re more than just developers—we’re problem solvers, storytellers, and dedicated partners in your brand’s growth. Since our founding, we’ve focused on creating web experiences that are not only visually striking but also built to last.
+    </p>
+    <p class="about-paragraph">
+        Our team combines years of hands-on experience in frontend and backend technologies with an obsessive attention to detail. We believe that every line of code should serve a purpose, whether that’s improving performance, boosting accessibility, or telling your story in a way that connects with your audience.
+    </p>
+    <p class="about-paragraph">
+        We work closely with businesses—both small startups and established enterprises—helping them turn ideas into digital realities. From responsive marketing sites and dynamic e-commerce platforms to custom web applications, our goal is always the same: to create online solutions that drive growth, delight users, and stand the test of time.
+    </p>
 
-        <p class="mb-4 animate-fadeIn delay-150 text-gray-100">
-            At <strong>Davidovici Software</strong>, we’re more than just developers—we’re problem solvers, storytellers, and dedicated partners in your brand’s growth. Since our founding, we’ve focused on creating web experiences that are not only visually striking but also built to last.
+    <ul id="about-list">
+        <li class="about-item">
+            <svg class="about-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                        fill-rule="evenodd"
+                        d="M16.707 5.293a1 1 0 01.023 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8
+               12.586l7.293-7.293a1 1 0 011.414-.023z"
+                        clip-rule="evenodd"
+                />
+            </svg>
+            <div>
+                <strong>Client-Centric Approach:</strong> We listen first, ask questions, and make sure we understand your goals before writing a single line of code.
+            </div>
+        </li>
+        <li class="about-item">
+            <svg class="about-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                        fill-rule="evenodd"
+                        d="M16.707 5.293a1 1 0 01.023 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8
+               12.586l7.293-7.293a1 1 0 011.414-.023z"
+                        clip-rule="evenodd"
+                />
+            </svg>
+            <div>
+                <strong>Quality &amp; Performance:</strong> Every project is optimized for speed, SEO, and accessibility—so your users get the best possible experience on any device.
+            </div>
+        </li>
+        <li class="about-item">
+            <svg class="about-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                        fill-rule="evenodd"
+                        d="M16.707 5.293a1 1 0 01.023 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8
+               12.586l7.293-7.293a1 1 0 011.414-.023z"
+                        clip-rule="evenodd"
+                />
+            </svg>
+            <div>
+                <strong>Transparent Communication:</strong> You’ll know exactly where your project stands at every stage. No surprises, just honest timelines and clear deliverables.
+            </div>
+        </li>
+        <li class="about-item">
+            <svg class="about-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                        fill-rule="evenodd"
+                        d="M16.707 5.293a1 1 0 01.023 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8
+               12.586l7.293-7.293a1 1 0 011.414-.023z"
+                        clip-rule="evenodd"
+                />
+            </svg>
+            <div>
+                <strong>Long-Term Partnership:</strong> We don’t disappear after launch. Ongoing support, maintenance, and iterative improvements are part of our DNA.
+            </div>
+        </li>
+    </ul>
+</section>
+
+<!-- PHILOSOPHY SECTION -->
+<section id="philosophy">
+    <h2 id="philosophy-heading">Our Philosophy</h2>
+    <p class="philosophy-paragraph">
+        At Davidovici Software, we believe that great websites aren’t built—they’re cultivated. Like any craft, software development flourishes when passion, precision, and purpose converge.
+    </p>
+    <p class="philosophy-paragraph">
+        <strong>Craftsmanship Over Cut-and-Paste:</strong> We write code as though it were poetry—clean, maintainable, and elegant. Every component, from your database schema to the tiniest CSS rule, should stand on its own merits.
+    </p>
+    <p class="philosophy-paragraph">
+        <strong>Collaboration Beats Isolation:</strong> The best ideas rarely come from a single engineer locked in a basement. By embracing open communication—with you, our designers, and every stakeholder—we uncover solutions that individual silos would miss.
+    </p>
+    <p class="philosophy-paragraph">
+        <strong>Continuous Improvement:</strong> The web never stands still, and neither do we. We iterate, measure, and refine, ensuring that your digital presence evolves as your business grows—and as technology changes.
+    </p>
+</section>
+
+<!-- CONTACT SECTION -->
+<section id="contact">
+    <h2 id="contact-heading">Contact Us</h2>
+    <div id="contact-card">
+        <p>
+            You can reach us directly at
+            <a href="mailto:yaakov@davidovicisoftware.com" id="contact-email"
+            >yaakov@davidovicisoftware.com</a
+            >.
         </p>
-
-        <p class="mb-4 animate-fadeIn delay-300 text-gray-100">
-            Our team combines years of hands-on experience in frontend and backend technologies with an obsessive attention to detail. We believe that every line of code should serve a purpose, whether that’s improving performance, boosting accessibility, or telling your story in a way that connects with your audience.
-        </p>
-
-        <p class="animate-fadeIn delay-450 text-gray-100">
-            We work closely with businesses—both small startups and established enterprises—helping them turn ideas into digital realities. From responsive marketing sites and dynamic e-commerce platforms to custom web applications, our goal is always the same: to create online solutions that drive growth, delight users, and stand the test of time.
-        </p>
-
-        <!-- Optional: “Why Choose Us” bullet‐point list -->
-        <ul class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 text-left max-w-xl mx-auto">
-            <li class="flex items-start animate-fadeIn delay-600">
-                <svg class="w-6 h-6 text-green-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 01.023 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414-.023z" clip-rule="evenodd" />
-                </svg>
-                <div class="text-gray-100">
-                    <strong>Client-Centric Approach:</strong> We listen first, ask questions, and make sure we understand your goals before writing a single line of code.
-                </div>
-            </li>
-            <li class="flex items-start animate-fadeIn delay-750">
-                <svg class="w-6 h-6 text-green-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 01.023 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414-.023z" clip-rule="evenodd" />
-                </svg>
-                <div class="text-gray-100">
-                    <strong>Quality &amp; Performance:</strong> Every project is optimized for speed, SEO, and accessibility—so your users get the best possible experience on any device.
-                </div>
-            </li>
-            <li class="flex items-start animate-fadeIn delay-900">
-                <svg class="w-6 h-6 text-green-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 01.023 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414-.023z" clip-rule="evenodd" />
-                </svg>
-                <div class="text-gray-100">
-                    <strong>Transparent Communication:</strong> You’ll know exactly where your project stands at every stage. No surprises, just honest timelines and clear deliverables.
-                </div>
-            </li>
-            <li class="flex items-start animate-fadeIn delay-1050">
-                <svg class="w-6 h-6 text-green-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 01.023 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414-.023z" clip-rule="evenodd" />
-                </svg>
-                <div class="text-gray-100">
-                    <strong>Long-Term Partnership:</strong> We don’t disappear after launch. Ongoing support, maintenance, and iterative improvements are part of our DNA.
-                </div>
-            </li>
-        </ul>
     </div>
 </section>
 
-
-<!-- Our Philosophy Section -->
-<section id="philosophy" class="py-20 bg-gray-800">
-    <div class="container mx-auto px-6 text-center">
-        <h2 class="text-3xl font-bold mb-12 animate-fadeIn text-gray-100">Our Philosophy</h2>
-
-        <p class="mb-6 animate-fadeIn delay-150 text-gray-100">
-            At Davidovici Software, we believe that great websites aren’t built—they’re cultivated. Like any craft, software development flourishes when passion, precision, and purpose converge.
-        </p>
-
-        <p class="mb-6 animate-fadeIn delay-300 text-gray-100">
-            <strong>Craftsmanship Over Cut-and-Paste:</strong> We write code as though it were poetry—clean, maintainable, and elegant. Every component, from your database schema to the tiniest CSS rule, should stand on its own merits.
-        </p>
-
-        <p class="mb-6 animate-fadeIn delay-450 text-gray-100">
-            <strong>Collaboration Beats Isolation:</strong> The best ideas rarely come from a single engineer locked in a basement. By embracing open communication—with you, our designers, and every stakeholder—we uncover solutions that individual silos would miss.
-        </p>
-
-        <p class="animate-fadeIn delay-600 text-gray-100">
-            <strong>Continuous Improvement:</strong> The web never stands still, and neither do we. We iterate, measure, and refine, ensuring that your digital presence evolves as your business grows—and as technology changes.
-        </p>
-    </div>
-</section>
-
-<!-- Contact Section -->
-<section id="contact" class="py-20 bg-gray-800">
-    <div class="container mx-auto px-6 text-center">
-        <h2 class="text-3xl font-bold mb-12 animate-fadeIn">Contact Us</h2>
-        <div class="max-w-xl mx-auto bg-gray-700 p-8 rounded-lg shadow animate-fadeIn delay-150">
-            <p class="text-lg">
-                You can reach us directly at
-                <a href="mailto:yaakov@davidovicisoftware.com" class="text-blue-400 underline hover:text-blue-600">
-                    yaakov@davidovicisoftware.com
-                </a>
-            </p>
-        </div>
-    </div>
-</section>
-
-<!-- Footer -->
-<footer class="py-6 bg-gray-900 text-center">
-    <p class="text-sm">© 2025 Davidovici Software. All rights reserved.</p>
+<!-- FOOTER -->
+<footer id="footer">
+    <p>© 2025 Davidovici Software. All rights reserved.</p>
 </footer>
 </body>
 </html>
