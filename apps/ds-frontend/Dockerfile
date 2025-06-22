@@ -1,12 +1,18 @@
+# From the bun edge image
 FROM jarredsumner/bun:edge
 
+# Set working dir
 WORKDIR /usr/src/app
-COPY package.json bun.lockb ./
+
+# Copy in your package manifest and lockfile (bun.lock, not bun.lockb)
+COPY package.json bun.lock ./
+
+# Install deps
 RUN bun install
 
+# Copy the rest of your front-end code
 COPY . .
 
+# Expose and run
 EXPOSE 3000
-
-# Assuming your server entrypoint is in server.ts
-CMD ["bun", "run", "server.js"]
+CMD ["bun", "run", "start"]
