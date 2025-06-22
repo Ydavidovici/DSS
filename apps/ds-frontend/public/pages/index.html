@@ -1,184 +1,271 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" class="scroll-smooth">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
-            name="description"
-            content="Davidovici Software - Innovative web development tailored for your business."
+      name="description"
+      content="Davidovici Software - Innovative web development tailored for your business."
     />
     <meta property="og:title" content="Davidovici Software" />
     <meta
-            property="og:description"
-            content="Web development solutions that are professional, clean, and tailored to your needs."
+      property="og:description"
+      content="Web development solutions that are professional, clean, and tailored to your needs."
     />
     <meta property="og:image" content="/images/hero-bg.jpg" />
     <meta property="og:type" content="website" />
     <title>Davidovici Software</title>
     <!-- Fonts, JS, Favicon, and your global CSS placeholder -->
     <link
-            href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap"
-            rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <!-- then load JetBrains Mono (if you still need it elsewhere) -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap"
+      rel="stylesheet"
     />
     <script src="/js/globals.js" defer></script>
     <link rel="icon" href="/favicon.ico" />
     <link rel="stylesheet" href="/css/globals.css" />
-</head>
-<body>
-<!-- NAVBAR -->
-<nav id="navbar">
-    <div id="navbar-logo">Davidovici Software</div>
-    <ul id="navbar-links">
-        <li><a href="#hero">Home</a></li>
-        <li><a href="#services">Services</a></li>
-        <li><a href="#about">About</a></li>
-        <li><a href="#contact">Contact</a></li>
-    </ul>
-</nav>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header__inner">
+        <h1 class="site-header__logo">Davidovici Software</h1>
 
-<!-- HERO SECTION -->
-<section id="hero">
-    <div id="hero-overlay"></div>
-    <div id="hero-content">
+        <nav class="site-header__nav" aria-label="Main navigation">
+          <ul class="site-header__list">
+            <li class="site-header__item">
+              <a href="#hero" class="site-header__link">Home</a>
+            </li>
+            <li class="site-header__item">
+              <a href="#services" class="site-header__link">Services</a>
+            </li>
+            <li class="site-header__item">
+              <a href="#about" class="site-header__link">About</a>
+            </li>
+            <li class="site-header__item">
+              <a href="#contact" class="site-header__link">Contact</a>
+            </li>
+            <li class="site-header__item">
+              <a href="#contact" class="site-header__cta">Request a quote</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <section id="hero">
+      <div id="hero-text">
         <h1 id="hero-title">Welcome to Davidovici Software</h1>
-        <p id="hero-subtitle">Innovative Solutions Tailored For You</p>
-        <a href="#contact" id="hero-cta">Get In Touch</a>
-    </div>
-</section>
-
-<!-- SERVICES SECTION -->
-<section id="services">
-    <h2 id="services-heading">Our Services</h2>
-    <div id="services-grid">
-        <div class="service-card">
-            <h3>Web Development</h3>
-            <p>Modern, responsive websites tailored to your business needs.</p>
-        </div>
-        <div class="service-card">
-            <h3>UI/UX Design</h3>
-            <p>Crafting visually stunning and user-friendly interfaces.</p>
-        </div>
-        <div class="service-card">
-            <h3>Consulting</h3>
-            <p>Offering expert advice to elevate your digital presence.</p>
-        </div>
-        <div class="service-card">
-            <h3>Web Scraping</h3>
-            <p>Extracting and structuring data from websites for business intelligence.</p>
-        </div>
-        <div class="service-card">
-            <h3>Data Analysis</h3>
-            <p>Turning raw data into insights through analysis and visualization.</p>
-        </div>
-        <div class="service-card">
-            <h3>Automation</h3>
-            <p>Custom scripts and workflows to reduce manual effort and save time.</p>
-        </div>
-    </div>
-</section>
-
-<!-- ABOUT SECTION -->
-<section id="about">
-    <h2 id="about-heading">About Us</h2>
-    <p class="about-paragraph">
-        At <strong>Davidovici Software</strong>, we’re more than just developers—we’re problem solvers, storytellers, and dedicated partners in your brand’s growth. Since our founding, we’ve focused on creating web experiences that are not only visually striking but also built to last.
-    </p>
-    <p class="about-paragraph">
-        Our team combines years of hands-on experience in frontend and backend technologies with an obsessive attention to detail. We believe that every line of code should serve a purpose, whether that’s improving performance, boosting accessibility, or telling your story in a way that connects with your audience.
-    </p>
-    <p class="about-paragraph">
-        We work closely with businesses—both small startups and established enterprises—helping them turn ideas into digital realities. From responsive marketing sites and dynamic e-commerce platforms to custom web applications, our goal is always the same: to create online solutions that drive growth, delight users, and stand the test of time.
-    </p>
-
-    <ul id="about-list">
-        <li class="about-item">
-            <svg class="about-icon" viewBox="0 0 20 20" fill="currentColor">
-                <path
-                        fill-rule="evenodd"
-                        d="M16.707 5.293a1 1 0 01.023 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8
-               12.586l7.293-7.293a1 1 0 011.414-.023z"
-                        clip-rule="evenodd"
-                />
-            </svg>
-            <div>
-                <strong>Client-Centric Approach:</strong> We listen first, ask questions, and make sure we understand your goals before writing a single line of code.
-            </div>
-        </li>
-        <li class="about-item">
-            <svg class="about-icon" viewBox="0 0 20 20" fill="currentColor">
-                <path
-                        fill-rule="evenodd"
-                        d="M16.707 5.293a1 1 0 01.023 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8
-               12.586l7.293-7.293a1 1 0 011.414-.023z"
-                        clip-rule="evenodd"
-                />
-            </svg>
-            <div>
-                <strong>Quality &amp; Performance:</strong> Every project is optimized for speed, SEO, and accessibility—so your users get the best possible experience on any device.
-            </div>
-        </li>
-        <li class="about-item">
-            <svg class="about-icon" viewBox="0 0 20 20" fill="currentColor">
-                <path
-                        fill-rule="evenodd"
-                        d="M16.707 5.293a1 1 0 01.023 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8
-               12.586l7.293-7.293a1 1 0 011.414-.023z"
-                        clip-rule="evenodd"
-                />
-            </svg>
-            <div>
-                <strong>Transparent Communication:</strong> You’ll know exactly where your project stands at every stage. No surprises, just honest timelines and clear deliverables.
-            </div>
-        </li>
-        <li class="about-item">
-            <svg class="about-icon" viewBox="0 0 20 20" fill="currentColor">
-                <path
-                        fill-rule="evenodd"
-                        d="M16.707 5.293a1 1 0 01.023 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8
-               12.586l7.293-7.293a1 1 0 011.414-.023z"
-                        clip-rule="evenodd"
-                />
-            </svg>
-            <div>
-                <strong>Long-Term Partnership:</strong> We don’t disappear after launch. Ongoing support, maintenance, and iterative improvements are part of our DNA.
-            </div>
-        </li>
-    </ul>
-</section>
-
-<!-- PHILOSOPHY SECTION -->
-<section id="philosophy">
-    <h2 id="philosophy-heading">Our Philosophy</h2>
-    <p class="philosophy-paragraph">
-        At Davidovici Software, we believe that great websites aren’t built—they’re cultivated. Like any craft, software development flourishes when passion, precision, and purpose converge.
-    </p>
-    <p class="philosophy-paragraph">
-        <strong>Craftsmanship Over Cut-and-Paste:</strong> We write code as though it were poetry—clean, maintainable, and elegant. Every component, from your database schema to the tiniest CSS rule, should stand on its own merits.
-    </p>
-    <p class="philosophy-paragraph">
-        <strong>Collaboration Beats Isolation:</strong> The best ideas rarely come from a single engineer locked in a basement. By embracing open communication—with you, our designers, and every stakeholder—we uncover solutions that individual silos would miss.
-    </p>
-    <p class="philosophy-paragraph">
-        <strong>Continuous Improvement:</strong> The web never stands still, and neither do we. We iterate, measure, and refine, ensuring that your digital presence evolves as your business grows—and as technology changes.
-    </p>
-</section>
-
-<!-- CONTACT SECTION -->
-<section id="contact">
-    <h2 id="contact-heading">Contact Us</h2>
-    <div id="contact-card">
-        <p>
-            You can reach us directly at
-            <a href="mailto:yaakov@davidovicisoftware.com" id="contact-email"
-            >yaakov@davidovicisoftware.com</a
-            >.
+        <p id="hero-subtitle">
+          Our consulting agency helps businesses grow and succeed online through
+          a range of services including Web Development, E-Commerce Solutions,
+          Search Engine Optimization (SEO) and Web Scraping.
         </p>
-    </div>
-</section>
+        <a href="#contact-cta" id="hero-cta">Get In Touch</a>
+      </div>
 
-<!-- FOOTER -->
-<footer id="footer">
-    <p>© 2025 Davidovici Software. All rights reserved.</p>
-</footer>
-</body>
+      <div id="hero-illustration">
+        <img
+          src="images/work-in-progress.svg"
+          alt="Work in progress illustration"
+          class="hero-svg"
+        />
+      </div>
+    </section>
+
+    <!-- SERVICES SECTION -->
+    <section id="services">
+      <h2 id="services-heading">Our Services</h2>
+      <div id="services-grid">
+        <div class="service-card">
+          <h3>Web Development</h3>
+          <p>Modern, responsive websites tailored to your business needs.</p>
+        </div>
+        <div class="service-card">
+          <h3>UI/UX Design</h3>
+          <p>Crafting visually stunning and user-friendly interfaces.</p>
+        </div>
+        <div class="service-card">
+          <h3>Consulting</h3>
+          <p>Offering expert advice to elevate your digital presence.</p>
+        </div>
+        <div class="service-card">
+          <h3>Web Scraping</h3>
+          <p>
+            Extracting and structuring data from websites for business
+            intelligence.
+          </p>
+        </div>
+        <div class="service-card">
+          <h3>Data Analysis</h3>
+          <p>
+            Turning raw data into insights through analysis and visualization.
+          </p>
+        </div>
+        <div class="service-card">
+          <h3>Automation</h3>
+          <p>
+            Custom scripts and workflows to reduce manual effort and save time.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABOUT SECTION -->
+    <section id="about">
+      <h2 id="about-heading">About Us</h2>
+      <p class="about-paragraph">
+        At
+        <strong>Davidovici Software</strong>
+        , we’re more than just developers—we’re problem solvers, storytellers,
+        and dedicated partners in your brand’s growth. Since our founding, we’ve
+        focused on creating web experiences that are not only visually striking
+        but also built to last.
+      </p>
+      <p class="about-paragraph">
+        Our team combines years of hands-on experience in frontend and backend
+        technologies with an obsessive attention to detail. We believe that
+        every line of code should serve a purpose, whether that’s improving
+        performance, boosting accessibility, or telling your story in a way that
+        connects with your audience.
+      </p>
+      <p class="about-paragraph">
+        We work closely with businesses—both small startups and established
+        enterprises—helping them turn ideas into digital realities. From
+        responsive marketing sites and dynamic e-commerce platforms to custom
+        web applications, our goal is always the same: to create online
+        solutions that drive growth, delight users, and stand the test of time.
+      </p>
+
+      <ul id="about-list">
+        <li class="about-item">
+          <svg class="about-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path
+              fill-rule="evenodd"
+              d="M16.707 5.293a1 1 0 01.023 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8
+               12.586l7.293-7.293a1 1 0 011.414-.023z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          <div>
+            <strong>Client-Centric Approach:</strong>
+            We listen first, ask questions, and make sure we understand your
+            goals before writing a single line of code.
+          </div>
+        </li>
+        <li class="about-item">
+          <svg class="about-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path
+              fill-rule="evenodd"
+              d="M16.707 5.293a1 1 0 01.023 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8
+               12.586l7.293-7.293a1 1 0 011.414-.023z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          <div>
+            <strong>Quality &amp; Performance:</strong>
+            Every project is optimized for speed, SEO, and accessibility—so your
+            users get the best possible experience on any device.
+          </div>
+        </li>
+        <li class="about-item">
+          <svg class="about-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path
+              fill-rule="evenodd"
+              d="M16.707 5.293a1 1 0 01.023 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8
+               12.586l7.293-7.293a1 1 0 011.414-.023z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          <div>
+            <strong>Transparent Communication:</strong>
+            You’ll know exactly where your project stands at every stage. No
+            surprises, just honest timelines and clear deliverables.
+          </div>
+        </li>
+        <li class="about-item">
+          <svg class="about-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path
+              fill-rule="evenodd"
+              d="M16.707 5.293a1 1 0 01.023 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8
+               12.586l7.293-7.293a1 1 0 011.414-.023z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          <div>
+            <strong>Long-Term Partnership:</strong>
+            We don’t disappear after launch. Ongoing support, maintenance, and
+            iterative improvements are part of our DNA.
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <!-- PHILOSOPHY SECTION -->
+    <section id="philosophy">
+      <h2 id="philosophy-heading">Our Philosophy</h2>
+      <p class="philosophy-paragraph">
+        At Davidovici Software, we believe that great websites aren’t
+        built—they’re cultivated. Like any craft, software development
+        flourishes when passion, precision, and purpose converge.
+      </p>
+      <p class="philosophy-paragraph">
+        <strong>Craftsmanship Over Cut-and-Paste:</strong>
+        We write code as though it were poetry—clean, maintainable, and elegant.
+        Every component, from your database schema to the tiniest CSS rule,
+        should stand on its own merits.
+      </p>
+      <p class="philosophy-paragraph">
+        <strong>Collaboration Beats Isolation:</strong>
+        The best ideas rarely come from a single engineer locked in a basement.
+        By embracing open communication—with you, our designers, and every
+        stakeholder—we uncover solutions that individual silos would miss.
+      </p>
+      <p class="philosophy-paragraph">
+        <strong>Continuous Improvement:</strong>
+        The web never stands still, and neither do we. We iterate, measure, and
+        refine, ensuring that your digital presence evolves as your business
+        grows—and as technology changes.
+      </p>
+    </section>
+
+    <!-- Reuse & repurpose your CTA as the single "contact" block -->
+    <section id="contact-cta">
+      <div id="cta-card">
+        <div id="cta-text">
+          <h3 id="cta-title">Let’s make things happen</h3>
+          <p id="cta-paragraph">Contact us today</p>
+          <a href="mailto:yaakov@davidovicisoftware.com" id="cta-button">
+            Get your free proposal
+          </a>
+        </div>
+        <div class="cta-illustration">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="80"
+            height="80"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M9.75 6.75h-3a3 3 0 0 0-3 3v7.5a3 3 0 0 0 3 3h7.5a3 3 0 0 0 3-3v-7.5a3 3 0 0 0-3-3h-3V1.5a.75.75 0 0 0-1.5 0v5.25Zm0 0h1.5v5.69l1.72-1.72a.75.75 0 1 1 1.06 1.06l-3 3a.75.75 0 0 1-1.06 0l-3-3a.75.75 0 1 1 1.06-1.06l1.72 1.72V6.75Z"
+              clip-rule="evenodd"
+            />
+            <path
+              d="M7.151 21.75a2.999 2.999 0 0 0 2.599 1.5h7.5a3 3 0 0 0 3-3v-7.5c0-1.11-.603-2.08-1.5-2.599v7.099a4.5 4.5 0 0 1-4.5 4.5H7.151Z"
+            />
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer id="footer">
+      <p>© 2025 Davidovici Software. All rights reserved.</p>
+    </footer>
+  </body>
 </html>

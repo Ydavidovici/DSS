@@ -1,211 +1,780 @@
 /*────────── Design tokens ──────────*/
 :root {
-    --color-bg:       #ffffff;
-    --color-text:     #000000;
-    --color-accent:   #10B981;
+  --color-bg: #ffffff;
+  --color-text: #000000;
+  --color-accent: #10b981;
 
-    --font-sans:      'Space Grotesk', sans-serif;
+  --font-sans: "Space Grotesk", sans-serif;
 
-    --fs-base:        20px;
-    --lh-base:        28px;
+  --fs-base: 20px;
+  --lh-base: 28px;
 
-    --sp-2xl:         64px;
-    --sp-xl:          32px;
-    --sp-lg:          24px;
-    --sp-md:          16px;
+  --sp-2xl: 64px;
+  --sp-xl: 32px;
+  --sp-lg: 24px;
+  --sp-md: 16px;
 }
 
 /*────────── Reset & Base ──────────*/
 *,
 *::before,
-*::after { box-sizing: border-box; }
+*::after {
+  box-sizing: border-box;
+}
 body {
-    margin: 0;
-    font-family: var(--font-sans);
-    color: var(--color-text);
-    background: var(--color-bg);
-    line-height: 1.6;
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-text);
+  background: var(--color-bg);
+  line-height: 1.6;
 }
 
 /*────────── Navbar ──────────*/
 #navbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--sp-xl) var(--sp-2xl);
-    background: var(--color-bg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 60px 100px;
+  margin-bottom: 70px;
+  background: var(--color-bg);
 }
+
 #navbar-logo {
-    margin: 0;
-    font-size: 32px;
-    line-height: 28px;
-    font-weight: 500;
+  /* Type */
+  font-family: var(--font-sans);
+  font-size: 32px; /* from Figma: 32px */
+  line-height: 28px; /* from Figma: 28px */
+  font-weight: 500; /* from Figma: 500 */
+  color: var(--color-text);
+
+  /* Spacing */
+  margin: 0;
+  margin-right: 70px;
 }
+
 #navbar-links {
-    display: flex;
-    gap: var(--sp-2xl);
-    list-style: none;
-    margin: 0;
-    padding: 0;
+  display: flex;
+  gap: 40px; /* 40px between each link */
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
+
 #navbar-links a {
-    font-size: var(--fs-base);
-    line-height: var(--lh-base);
-    color: var(--color-text);
-    text-decoration: none;
-    transition: color .2s ease-in-out;
+  font-size: var(--fs-base);
+  line-height: var(--lh-base);
+  color: var(--color-text);
+  text-decoration: none;
+  transition: color 0.2s ease-in-out;
 }
 #navbar-links a:hover {
-    color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/*────────── Header ──────────*/
+.site-header {
+  background: var(--color-bg);
+  padding: 60px 100px; /* Figma: 60px top/bottom, 100px left/right */
+  margin-bottom: 70px; /* Figma: 70px gap to hero */
+}
+
+.site-header__inner {
+  max-width: 1440px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Logo */
+.site-header__logo {
+  font-family: var(--font-sans);
+  font-size: 32px; /* Figma: 32px */
+  line-height: 28px; /* Figma: 28px */
+  font-weight: 600; /* a bit thicker than 500 */
+  color: var(--color-text);
+  margin: 0;
+}
+
+/* Nav list */
+.site-header__list {
+  display: flex;
+  align-items: center;
+  gap: 40px; /* 40px between each link */
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.site-header__link {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 20px */
+  line-height: var(--lh-base); /* 28px */
+  font-weight: 500; /* bump up from 400 to 500 */
+  color: var(--color-text);
+  text-decoration: none;
+  transition: color 0.2s ease-in-out;
+}
+
+.site-header__link:hover {
+  color: var(--color-accent);
+}
+
+/* “Request a quote” CTA */
+.site-header__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 28px; /* adjust to taste or Figma values */
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  font-weight: 500;
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid var(--color-text);
+  border-radius: 14px;
+  text-decoration: none;
+  transition:
+    background 0.2s,
+    color 0.2s,
+    transform 0.2s;
+}
+
+.site-header__cta:hover {
+  background: var(--color-text);
+  color: var(--color-bg);
+  transform: translateY(-2px);
+}
+
+/* make sure your text doesn’t stretch too wide */
+#hero-text {
+  max-width: 531px; /* Figma width of the heading block */
 }
 
 /*────────── Hero Section ──────────*/
+/* Hero container */
 #hero {
-    position: relative;
-    padding: var(--sp-2xl) var(--sp-xl);
-    text-align: center;
-    overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  align-items: start; /* pull both columns to top */
+  gap: var(--sp-xl); /* 32px between columns */
+  padding: 40px 32px 80px;
 }
-#hero-overlay {
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: url('/images/hero-bg.jpg') center/cover no-repeat;
-    z-index: -1;
+
+/* Text side */
+#hero-text {
+  max-width: 530px;
+  margin-top: -10px; /* nudge text up a hair */
 }
-#hero-content {
-    position: relative;
-    z-index: 1;
-    color: var(--color-bg);
-    padding: var(--sp-2xl) 0;
+
+/* Illustration side */
+#hero-illustration {
+  display: flex;
+  justify-content: center;
+  margin-top: -20px;
+  padding: 0 var(--sp-lg);
 }
+
+.hero-svg {
+  width: 100%;
+  max-width: 1200px;
+  height: auto;
+}
+
+@media (min-width: 1200px) {
+  #hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    /* limit your overall width and center it in the page */
+    max-width: 1440px;
+    margin: 0 auto;
+    /* keep your reduced top padding from step 1 */
+    padding: 40px 32px 80px;
+  }
+
+  /* Text block sits at ~40% */
+  #hero-text {
+    flex: 0 0 40%;
+  }
+
+  /* Illustration takes up ~50% */
+  #hero-illustration {
+    flex: 0 0 50%;
+    padding: 0; /* remove extra side-padding */
+  }
+}
+
+/*── Hero Title ──*/
 #hero-title {
-    font-size: 2.5rem;
-    margin: 0 0 var(--sp-md);
+  font-size: 60px;
+  font-weight: 500;
+  line-height: 1.2;
+  margin: 0 0 35px;
+  padding-left: var(--sp-lg);
 }
+
+/*── Hero Subtitle ──*/
 #hero-subtitle {
-    font-size: 1.25rem;
-    margin: 0 0 var(--sp-lg);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 28px;
+  margin: 0 0 35px;
+  padding-left: var(--sp-lg);
 }
+
+/*── Hero CTA Button ──*/
 #hero-cta {
-    display: inline-block;
-    padding: var(--sp-md) var(--sp-lg);
-    background: var(--color-accent);
-    color: var(--color-bg);
-    text-decoration: none;
-    font-size: var(--fs-base);
-    border-radius: 4px;
-    transition: background .2s, transform .2s;
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-end;
+  justify-content: center;
+  padding: 20px 35px;
+  font-size: var(--fs-base);
+  font-weight: 500;
+  background: var(--color-text);
+  color: var(--color-bg);
+  border: none;
+  border-radius: 14px;
+  text-decoration: none;
+  transition: transform 0.2s ease-in-out;
 }
 #hero-cta:hover {
-    background: #0e8c3f;
-    transform: translateY(-2px);
+  transform: translateY(-2px);
+}
+
+#hero-text {
+  padding-left: var(--sp-xl); /* 32px */
 }
 
 /*────────── Services Section ──────────*/
 #services {
-    padding: var(--sp-2xl) var(--sp-xl);
+  text-align: center;
+  padding: var(--sp-2xl) var(--sp-xl);
 }
 #services-heading {
-    text-align: center;
-    font-size: 2rem;
-    margin-bottom: var(--sp-lg);
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--color-text);
+  background: var(--color-accent);
+  padding: 20px 48px;
+  border-radius: 14px;
+  margin: 0 auto 60px;
 }
+
 #services-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px,1fr));
-    gap: var(--sp-lg);
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 40px;
 }
+
 .service-card {
-    background: var(--color-bg);
-    border: 1px solid #e5e5e5;
-    border-radius: 8px;
-    padding: var(--sp-lg);
-    text-align: center;
+  background: var(--color-bg);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 14px;
+  padding: var(--sp-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-md);
+  text-align: left;
+
+  /* add transition for smooth hover */
+  transition:
+    background 0.3s ease-in-out,
+    border-color 0.3s ease-in-out,
+    color 0.3s ease-in-out,
+    transform 0.2s ease-in-out;
 }
+
 .service-card h3 {
-    margin: 0 0 var(--sp-md);
+  margin: 0 0 var(--sp-md);
+  font-size: 20px;
+  font-weight: 500;
 }
+
 .service-card p {
-    margin: 0;
+  margin: 0;
+  font-size: var(--fs-base);
+  line-height: var(--lh-base);
+}
+
+.service-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md); /* 16px between icon & title */
+  margin-bottom: var(--sp-md);
+}
+
+/* Hover state: invert colors & lift */
+.service-card:hover {
+  background: var(--color-text); /* black bg */
+  color: var(--color-bg); /* white text */
+  border-color: var(--color-bg); /* white border */
+  transform: translateY(-4px);
+}
+
+/* Ensure headings & paragraphs inherit the white text */
+.service-card:hover h3,
+.service-card:hover p {
+  color: var(--color-bg);
+}
+
+#services-desc {
+  font-family: var(--font-sans);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 28px;
+  color: var(--color-text);
+  max-width: 498px; /* replace with your exact width */
+  margin: 0 0 40px; /* 40px below to the card grid */
+}
+
+/*────────── CTA Block ──────────*/
+#cta-card {
+  display: flex;
+  align-items: center; /* vertically center text + illustration */
+  width: 1240px; /* fixed from Figma */
+  height: 347px; /* fixed from Figma */
+  padding: 0 60px; /* 0px top/bottom, 60px left/right */
+  gap: 275px; /* space between text and illustration */
+  border-radius: 45px; /* from Figma */
+  background: #f3f3f3; /* the gray background */
+}
+
+/*────────── Text & Button Wrapper ──────────*/
+#cta-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px; /* between heading, paragraph, and button */
+}
+
+/*────────── Heading ──────────*/
+#cta-title {
+  font-family: var(--font-sans);
+  font-size: 30px;
+  font-weight: 500;
+  line-height: normal;
+  color: var(--color-text);
+  width: 500px; /* constrain width per Figma */
+  margin: 0; /* reset default margins */
+}
+
+/*────────── Paragraph ──────────*/
+#cta-paragraph {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: normal;
+  color: var(--color-text);
+  width: 500px; /* match the heading’s width */
+  margin: 0;
+}
+
+/*────────── CTA Button ──────────*/
+#cta-button {
+  display: flex;
+  align-items: flex-start; /* so the icon/text align as in Figma */
+  gap: 10px; /* space between icon and label */
+  padding: 20px 35px; /* 20px top/bottom, 35px left/right */
+  border-radius: 14px; /* from Figma */
+  background: var(--color-text);
+  color: var(--color-bg);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
 }
 
 /*────────── About Section ──────────*/
 #about {
-    padding: var(--sp-2xl) var(--sp-xl);
+  padding: var(--sp-2xl) var(--sp-xl);
 }
 #about-heading {
-    text-align: center;
-    font-size: 2rem;
-    margin-bottom: var(--sp-lg);
+  text-align: center;
+  font-size: 2rem;
+  margin-bottom: var(--sp-lg);
 }
 .about-paragraph {
-    max-width: 800px;
-    margin: 0 auto var(--sp-lg);
+  max-width: 800px;
+  margin: 0 auto var(--sp-lg);
 }
 #about-list {
-    list-style: none;
-    margin: var(--sp-lg) auto 0;
-    padding: 0;
-    max-width: 800px;
+  list-style: none;
+  margin: var(--sp-lg) auto 0;
+  padding: 0;
+  max-width: 800px;
 }
 .about-item {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--sp-md);
-    margin-bottom: var(--sp-md);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-md);
+  margin-bottom: var(--sp-md);
 }
 .about-icon {
-    flex-shrink: 0;
-    width: 1.25em;
-    height: 1.25em;
-    color: var(--color-accent);
-    margin-top: 0.25em;
+  flex-shrink: 0;
+  width: 1.25em;
+  height: 1.25em;
+  color: var(--color-accent);
+  margin-top: 0.25em;
 }
 
 /*────────── Philosophy Section ──────────*/
 #philosophy {
-    padding: var(--sp-2xl) var(--sp-xl);
+  padding: var(--sp-2xl) var(--sp-xl);
 }
 #philosophy-heading {
-    text-align: center;
-    font-size: 2rem;
-    margin-bottom: var(--sp-lg);
+  text-align: center;
+  font-size: 2rem;
+  margin-bottom: var(--sp-lg);
 }
 .philosophy-paragraph {
-    max-width: 800px;
-    margin: 0 auto var(--sp-lg);
+  max-width: 800px;
+  margin: 0 auto var(--sp-lg);
 }
 
-/*────────── Contact Section ──────────*/
-#contact {
-    padding: var(--sp-2xl) var(--sp-xl);
+/*────────── Process Section ──────────*/
+#process {
+  display: flex;
+  flex-direction: column;
+  padding: 0 100px; /* 0px top/bottom, 100px left/right */
+  gap: 30px; /* 30px between each card */
 }
-#contact-heading {
+
+/* Heading + subheading row */
+#process-header {
+  display: flex;
+  align-items: center;
+  gap: 40px; /* 40px between “Our Working Process” & the guide text */
+  margin-bottom: 30px; /* match the 30px gap to the first card */
+}
+
+#process-title {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 24px; /* confirm this matches your “Label” size */
+  font-weight: 500;
+  background: var(--color-accent);
+  padding: 8px 12px; /* your green pill’s vertical/horizontal padding */
+  border-radius: 14px;
+  color: var(--color-text);
+}
+
+#process-subtitle {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: normal;
+  color: var(--color-text);
+  width: 292px; /* the 292px wide text block */
+}
+
+/* Universal card style (collapsed) */
+.process-card {
+  display: inline-flex;
+  width: 1234px; /* full frame width */
+  padding: 41px 60px; /* 41px top/bottom, 60px left/right */
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px; /* between number, title, divider (if present) */
+  border-radius: 45px;
+  border: 1px solid #191a23;
+  background: var(--color-grayscale, #f3f3f3);
+  box-shadow: 0 5px 0 0 #191a23;
+}
+
+/* Expanded card override (e.g. for the open first step) */
+.process-card.expanded {
+  background: var(--color-accent); /* #B9FF66 */
+}
+
+/* Step number */
+.step-number {
+  font-family: var(--font-sans);
+  font-size: 60px;
+  font-weight: 500;
+  line-height: normal;
+  width: 75px; /* bounding-box width from Figma */
+  margin: 0;
+}
+
+/* Step title */
+.step-title {
+  font-family: var(--font-sans);
+  font-size: 30px;
+  font-weight: 500;
+  line-height: normal;
+  width: 612px; /* bounding-box width from Figma */
+  margin: 0;
+}
+
+/* Optional: the thin divider in the expanded card */
+.step-divider {
+  width: 100%;
+  height: 1px;
+  background: #191a23;
+  margin: 0 0 10px; /* 10px gap to the paragraph */
+}
+
+/*────────── Testimonials Section ──────────*/
+#testimonials {
+  display: flex;
+  flex-direction: column;
+  gap: 30px; /* space between header and block */
+  padding: var(--sp-2xl) 0 var(--sp-xl) 0; /* reuse your tokens if you like */
+}
+
+/* Heading + subheading */
+#testimonials-header {
+  display: flex;
+  align-items: center;
+  gap: 40px; /* 40px between “Testimonials” pill & text */
+  margin-bottom: 30px; /* match the gap to the block below */
+}
+
+#testimonials-title {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 24px; /* same as your other section pills */
+  font-weight: 500;
+  background: var(--color-accent);
+  color: var(--color-text);
+  padding: 12px 30px; /* pill padding from your other sections */
+  border-radius: 14px;
+  margin: 0;
+}
+
+#testimonials-subtitle {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: normal;
+  color: #fff; /* white text on dark bg */
+  width: 473px; /* from your screenshot */
+  margin: 0;
+}
+
+/* Dark testimonials “carousel” container */
+#testimonials-block {
+  display: inline-flex;
+  width: 1240px; /* fixed from Figma */
+  height: 625px; /* fixed from Figma */
+  padding: 84px 0 68px 0; /* top/right/bottom/left from Figma */
+  align-items: center;
+  background: var(--color-dark, #191a23);
+  border-radius: 45px;
+}
+
+/* The row of bubbles */
+.testimonials-cards {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 1918px; /* from Figma */
+}
+
+/* Quote bubble */
+.testimonial-card {
+  /* TODO: insert exact padding, border-radius, border-color from the bubble frame */
+  background: transparent;
+  border: 1px solid var(--color-accent);
+  border-radius: 14px;
+  padding: 24px; /* placeholder—let me know the exact Figma padding */
+  color: #fff;
+}
+
+/* Quote text inside bubble */
+.testimonial-text {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: normal;
+  width: 502px; /* from your p layer */
+  margin: 0 0 16px; /* small bottom gap to author */
+}
+
+/* Author line under each bubble */
+.testimonial-author {
+  font-family: var(--font-sans);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: normal;
+  color: var(--color-accent);
+  width: 526px; /* from your author layer */
+}
+
+/* Navigation dots & arrows (optional) */
+.testimonial-nav {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px; /* space between arrows & dots */
+  margin-top: 24px;
+}
+
+/*────────── CTA Section (replaces old Contact Section) ──────────*/
+#contact-cta {
+  /* breathing room above/below */
+  padding: var(--sp-2xl) var(--sp-md);
+  margin-bottom: var(--sp-2xl);
+}
+
+#contact-cta #cta-card {
+  /* full-bleed on small, centered + capped on large */
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+
+  /* flex layout with wrap */
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+
+  /* pill shape & padding */
+  background: #f3f3f3;
+  border-radius: 45px;
+  padding: var(--sp-2xl) var(--sp-xl);
+  gap: var(--sp-2xl);
+
+  /* ensure padding counts in width */
+  box-sizing: border-box;
+}
+
+/* text + button column */
+#contact-cta #cta-text {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-lg);
+}
+
+/* keep button from stretching weirdly */
+#contact-cta #cta-button {
+  flex-shrink: 0;
+  padding: 20px 35px;
+  border: none;
+  border-radius: 14px;
+  background: var(--color-text);
+  color: var(--color-bg);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  cursor: pointer;
+  transition: transform 0.2s ease-in-out;
+}
+#contact-cta #cta-button:hover {
+  transform: translateY(-4px);
+}
+
+/* svg wrapper stays its own size */
+#contact-cta .cta-illustration {
+  flex-shrink: 0;
+  max-width: 400px;
+  text-align: right;
+}
+#contact-cta .cta-illustration svg {
+  width: 80px;
+  height: auto;
+  display: block;
+}
+
+/*────────── Responsive Tweaks ──────────*/
+@media (max-width: 768px) {
+  /* stack text → svg */
+  #contact-cta #cta-card {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: var(--sp-xl) var(--sp-md);
+    gap: var(--sp-lg);
+  }
+  /* make svg drop below */
+  #contact-cta .cta-illustration {
+    width: 100%;
+    text-align: left;
+    margin-top: var(--sp-xl);
+  }
+  /* text block full width */
+  #contact-cta #cta-text {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  /* tighten up for tiny phones */
+  #contact-cta {
+    padding: var(--sp-xl) var(--sp-md);
+  }
+  #contact-cta #cta-button {
+    width: 100%;
     text-align: center;
-    font-size: 2rem;
-    margin-bottom: var(--sp-lg);
-}
-#contact-card {
-    max-width: 400px;
-    margin: 0 auto;
-    padding: var(--sp-lg);
-    border: 1px solid #e5e5e5;
-    border-radius: 8px;
-    text-align: center;
-}
-#contact-email {
-    color: var(--color-accent);
-    text-decoration: none;
-    transition: color .2s;
-}
-#contact-email:hover {
-    color: var(--color-text);
+    padding: 16px 24px;
+    font-size: 18px;
+  }
 }
 
 /*────────── Footer ──────────*/
 #footer {
-    text-align: center;
-    padding: var(--sp-md) 0;
-    background: #f9f9f9;
-    font-size: 0.875rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 55px 60px 50px 60px; /* top/right/bottom/left from Figma */
+  gap: 50px;
+  background: var(--color-dark, #191a23);
+  border-radius: 45px 45px 0 0;
+}
+
+#footer .footer-nav {
+  display: flex;
+  gap: 50px; /* spacing between links */
+}
+
+#footer .footer-nav a {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  color: #fff;
+  text-decoration: underline;
+}
+
+#footer .social-icons {
+  display: flex;
+  gap: 16px;
+}
+
+#footer .subscription-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 58px 40px; /* top/bottom 58px, left/right 40px */
+  background: #292a32;
+  border-radius: 14px;
+}
+
+#footer .subscription-block input[type="email"] {
+  /* if you use a smaller email‐only field here */
+  font-family: var(--font-sans);
+  font-size: 18px;
+  color: #fff;
+}
+
+#footer .subscription-block .btn-subscribe {
+  padding: 16px 32px; /* match the form buttons */
+  background: var(--color-accent);
+  color: var(--color-bg);
+  border-radius: 14px;
+  font-family: var(--font-sans);
+  font-size: 18px;
+  font-weight: 500;
+  border: none;
+}
+
+/* copyright line */
+#footer p {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: #fff;
+  margin: 0;
 }

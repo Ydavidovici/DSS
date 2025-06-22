@@ -9,10 +9,10 @@ const app = express();
 app.use(express.static(join(__dirname, "public")));
 
 app.get("*", (req, res) => {
-    // if no static file matches, serve index.html
-    res.sendFile(join(__dirname, "public/pages/index.html"));
+  // if no static file matches, serve index.html
+  res.sendFile(join(__dirname, "public/pages/index.html"));
 });
 
 app.listen(3000, () => {
-    console.log("🚀 Listening on http://localhost:3000");
+  console.log("🚀 Listening on http://localhost:3000");
 });

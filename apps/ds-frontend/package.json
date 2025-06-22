@@ -4,9 +4,13 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "bun run server.js"
+    "start": "bun run server.js",
+    "format": "prettier --write \"**/*.{js,ts,html,css,json,md}\""
   },
   "dependencies": {
     "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "prettier": "^3.5.3"
   }
 }
