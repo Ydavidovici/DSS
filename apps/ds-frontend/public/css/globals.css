@@ -619,8 +619,8 @@ body {
 /*────────── CTA Section (replaces old Contact Section) ──────────*/
 #contact-cta {
   /* breathing room above/below */
-  padding: var(--sp-2xl) var(--sp-md);
-  margin-bottom: var(--sp-2xl);
+  padding: var(--sp-lg) var(--sp-md);
+  margin-bottom: var(--sp-lg);
 }
 
 #contact-cta #cta-card {
@@ -637,9 +637,9 @@ body {
 
   /* pill shape & padding */
   background: #f3f3f3;
-  border-radius: 45px;
-  padding: var(--sp-2xl) var(--sp-xl);
-  gap: var(--sp-2xl);
+  border-radius: 20px;
+  padding: var(--sp-xl) var(--sp-lg);
+  gap: var(--sp-lg);
 
   /* ensure padding counts in width */
   box-sizing: border-box;
@@ -650,7 +650,7 @@ body {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-lg);
+  gap: var(--sp-md);
 }
 
 /* keep button from stretching weirdly */
@@ -675,6 +675,7 @@ body {
   flex-shrink: 0;
   max-width: 400px;
   text-align: right;
+  padding-right: var(--sp-2xl);
 }
 #contact-cta .cta-illustration svg {
   width: 80px;
