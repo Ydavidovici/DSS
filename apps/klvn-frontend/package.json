@@ -1,16 +1,21 @@
 {
   "name": "klvn-frontend",
   "version": "0.0.2",
-  "module": "index.ts",
+  "module": "index.js",
   "scripts": {
-    "start": "bun run server.ts"
+    "start": "bun run src/server.ts"
   },
   "type": "module",
   "private": true,
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.0.14"
   },
   "peerDependencies": {
-    "typescript": "^5"
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
   }
 }
