@@ -260,7 +260,7 @@ body {
   font-size: 28px;
   font-weight: 500;
   line-height: 1.2;
-  color: var(--color-text);
+  color: white;
   background: var(--color-accent);
   padding: 20px 48px;
   border-radius: 14px;
