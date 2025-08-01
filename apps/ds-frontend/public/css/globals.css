@@ -312,7 +312,7 @@ body {
 
 /* Hover state: invert colors & lift */
 .service-card:hover {
-  background: var(--color-text); /* black bg */
+  background: var(--color-accent);
   color: var(--color-bg); /* white text */
   border-color: var(--color-bg); /* white border */
   transform: translateY(-4px);
