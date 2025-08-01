@@ -122,6 +122,10 @@ body {
 
 /* “Request a quote” CTA */
 .site-header__cta {
+  background: var(--color-accent);
+  color: var(--color-bg);
+  /* since the border was inherited, it’ll now match your bg if you remove it */
+  transform: translateY(-2px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -129,9 +133,6 @@ body {
   font-family: var(--font-sans);
   font-size: var(--fs-base);
   font-weight: 500;
-  color: var(--color-text);
-  background: transparent;
-  border: 1px solid var(--color-text);
   border-radius: 14px;
   text-decoration: none;
   transition:
@@ -225,6 +226,7 @@ body {
 
 /*── Hero CTA Button ──*/
 #hero-cta {
+  background: var(--color-accent);
   display: inline-flex;
   align-items: center;
   align-self: flex-start;
@@ -232,7 +234,6 @@ body {
   padding: 20px 35px;
   font-size: var(--fs-base);
   font-weight: 500;
-  background: var(--color-text);
   color: var(--color-bg);
   border: none;
   border-radius: 14px;
@@ -331,6 +332,89 @@ body {
   color: var(--color-text);
   max-width: 498px; /* replace with your exact width */
   margin: 0 0 40px; /* 40px below to the card grid */
+}
+
+
+/*────────── Projects Section ──────────*/
+#projects {
+  padding: var(--sp-2xl) var(--sp-xl);
+  background: var(--color-bg);
+}
+
+#projects .section-heading {
+  text-align: center;
+  font-size: 28px;
+  font-weight: 500;
+  margin-bottom: var(--sp-xl);
+  color: var(--color-text);
+}
+
+/* grid of project cards */
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--sp-xl);
+}
+
+/* project card — reuses service-card style */
+.project-card {
+  background: var(--color-bg);
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 14px;
+  padding: var(--sp-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-md);
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.project-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+}
+
+.project-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.project-tagline {
+  margin: 0;
+  font-size: var(--fs-base);
+  color: var(--color-text);
+}
+
+.project-meta,
+.project-highlights {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  color: rgba(0,0,0,0.7);
+}
+
+.project-meta li + li,
+.project-highlights li + li {
+  margin-top: 4px;
+}
+
+.project-links {
+  margin-top: auto;
+  display: flex;
+  gap: var(--sp-md);
+}
+
+.project-links a {
+  font-size: var(--fs-base);
+  color: var(--color-accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.project-links a:hover {
+  text-decoration: underline;
 }
 
 /*────────── CTA Block ──────────*/
