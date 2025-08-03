@@ -40,7 +40,7 @@ module.exports = {
             name: 'pfm',
             cwd: 'apps/pfm',
             script: 'src/main.py',
-            interpreter: 'python3',
+            interpreter: '/srv/DSS/apps/pfm/.venv/bin/python',
             env: {
                 ENV: 'production'
             }
