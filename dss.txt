@@ -7,6 +7,7 @@
 Auth Service -
  - finish setting up jwt
  - finish setting up login route (user lookup with db service, create endpoint in db service)
+ - add logging, monitoring, and metrics (to spot bottlenecks and areas for optimization)
 
  DB Service -
  - add user lookup route for auth service
