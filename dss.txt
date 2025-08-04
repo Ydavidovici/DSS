@@ -1,0 +1,12 @@
+
+
+
+
+
+#TODO
+Auth Service -
+ - finish setting up jwt
+ - finish setting up login route (user lookup with db service, create endpoint in db service)
+
+ DB Service -
+ - add user lookup route for auth service

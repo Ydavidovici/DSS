@@ -22,7 +22,7 @@ module.exports = {
             name: 'ds-frontend',
             cwd: 'apps/ds-frontend',
             script: 'server.js',
-            interpreter: 'node',
+            interpreter: 'bun',
             env: {
                 NODE_ENV: 'production'
             }
@@ -31,7 +31,7 @@ module.exports = {
             name: 'klvn-frontend',
             cwd: 'apps/klvn-frontend',
             script: 'index.js',
-            interpreter: 'node',
+            interpreter: 'bun',
             env: {
                 NODE_ENV: 'production'
             }
