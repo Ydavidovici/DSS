@@ -11,3 +11,4 @@ Auth Service -
 
  DB Service -
  - add user lookup route for auth service
+ - add logging, monitoring, and metrics (to spot bottlenecks and areas for optimization)
