@@ -5,6 +5,14 @@
 
 #TODO
 Auth Service -
+ - Update test script(s)
+ - implement graceful shutdown
+ - harden security -
+ Double-check your Helmet/CORS settings
+ Confirm your cookie flags (HttpOnly, Secure, SameSite)
+ (Optional) Add HSTS headers
+ - add and commit public rsa key
+ - add documentation
  - add logging, monitoring, and metrics (to spot bottlenecks and areas for optimization)
 
  DB Service -
