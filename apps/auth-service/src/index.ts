@@ -1,64 +1,45 @@
-// src/index.ts
 import express from "express";
-import fs from "fs/promises";
-import path from "path";
-import { SignJWT, exportJWK, jwtVerify, JWK, JWTPayload } from "jose";
 import dotenv from "dotenv";
+import helmet from "helmet";
+import cors from "cors";
+import rateLimit from "express-rate-limit";
+import cookieParser from "cookie-parser";
+import { createClient } from "redis";
 
+import authRouter from "./routes/auth";
+import oidcRouter from "./routes/oidc";
+
+// Load environment variables
 dotenv.config();
+const PORT = process.env.PORT || 4000;
+
+// Initialize Redis (used by routers for token revocation, refresh storage)
+const redis = createClient({ url: process.env.REDIS_URL });
+redis.connect().catch(console.error);
+
 const app = express();
+
+// Global middleware
 app.use(express.json());
+app.use(cookieParser());
+app.use(helmet());
+app.use(cors({ origin: process.env.CORS_ORIGINS?.split(","), credentials: true }));
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
 
-/** 1) Load and prepare your keys + JWK Set **/
-const privKeyPem = await fs.readFile(path.resolve(process.env.PRIVATE_KEY_PATH!), "utf8");
-const pubKeyPem  = await fs.readFile(path.resolve(process.env.PUBLIC_KEY_PATH!), "utf8");
+// Mount routers
+app.use("/auth", authRouter);
+app.use(oidcRouter);
 
-// Build JWK objects
-const privateJwk = JWK.asKey(privKeyPem, { use: "sig", alg: "RS256", kid: "auth-key-1" });
-const publicJwk  = JWK.asKey(pubKeyPem,  { use: "sig", alg: "RS256", kid: "auth-key-1" });
+// 404 handler
+app.use((_req, res) => res.status(404).send("Not found"));
 
-// JWKS = { keys: [ publicJwk ] }
-const JWKS = { keys: [ await exportJWK(publicJwk) ] };
-
-/** 2) JWKS discovery endpoint **/
-app.get("/.well-known/jwks.json", (_req, res) => {
-    res.json(JWKS);
+// Error handler
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error(err);
+    res.status(500).send("Internal server error");
 });
 
-/** 3) Login → issue RS256 JWT **/
-app.post("/auth/login", async (req, res) => {
-    const { username, password } = req.body;
-    if (username !== "admin" || password !== "password123") {
-        return res.status(401).json({ message: "Invalid credentials" });
-    }
-    const now = Math.floor(Date.now() / 1000);
-    const payload: JWTPayload = {
-        sub: username,
-        iat: now,
-        exp: now + 60 * 60,        // or use process.env.JWT_EXPIRES_IN
-    };
-    const token = await new SignJWT(payload)
-      .setProtectedHeader({ alg: "RS256", kid: "auth-key-1" })
-      .sign(privateJwk);
-    res.json({ token });
-});
-
-/** 4) Verify endpoint → HTTP introspection **/
-app.get("/auth/verify", async (req, res) => {
-    const auth = req.headers.authorization;
-    if (!auth?.startsWith("Bearer ")) {
-        return res.status(401).json({ message: "Missing or malformed token." });
-    }
-    const token = auth.slice(7);
-    try {
-        // Verify against the public JWK we loaded
-        const { payload } = await jwtVerify(token, publicJwk, { algorithms: ["RS256"] });
-        res.json({ user: payload });
-    } catch (err) {
-        res.status(401).json({ message: "Invalid or expired token." });
-    }
-});
-
-app.listen(process.env.PORT, () =>
-  console.log(`Auth-service running on http://localhost:${process.env.PORT}`)
+// Start the server
+app.listen(PORT, () =>
+    console.log(`Auth-service running on http://localhost:${PORT}`)
 );
