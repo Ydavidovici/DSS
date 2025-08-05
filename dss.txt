@@ -5,10 +5,34 @@
 
 #TODO
 Auth Service -
- - finish setting up jwt
- - finish setting up login route (user lookup with db service, create endpoint in db service)
  - add logging, monitoring, and metrics (to spot bottlenecks and areas for optimization)
 
  DB Service -
  - add user lookup route for auth service
  - add logging, monitoring, and metrics (to spot bottlenecks and areas for optimization)
+ - Create a migration for a users table with columns:
+ id (PK, serial or UUID)
+ username (string, unique, indexed)
+ email (string, unique, indexed)
+ password_hash (string)
+ verified (boolean, default false)
+ roles (JSON or text array)
+ created_at and updated_at timestamps
+ - Configure your DB client (Knex/TypeORM/Sequelize) to read DATABASE_URL from env and run migrations
+ - Seed an initial admin user (bcrypt‐hashing their password)
+ - Implement POST /users to create a new user, returning 201 and omitting password_hash in the response
+ - Implement GET /users/:username to fetch a user by username (return 200 with user fields, or 404)
+ - Implement GET /users/email/:email to fetch a user by email (return 200 or 404)
+ - Implement PATCH /users/:id to update fields (verified, password_hash, roles), returning the
+ updated user (omit password_hash)
+ - Implement DELETE /users/:id (or soft‐delete via a deleted_at column), returning 204
+ on success
+ - Enforce unique constraints on username and email at the database level, and translate
+ duplicate‐key errors into 409 Conflict responses
+ - Strip password_hash from all API responses
+ - Add input validation for username and email (e.g. regex checks, length limits)
+ - Apply rate‐limiting to user‐creation and lookup endpoints to deter abuse
+ - (Optional) Normalize roles by creating roles and user_roles tables instead of a JSON/text
+column
+ - (Optional) Add a deleted_at timestamp column to support soft‐deletes
+ - (Optional) Implement audit logs for user events (registration, email verify, password reset) in a separate logging table or service
