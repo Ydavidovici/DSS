@@ -11,8 +11,6 @@ Auth Service -
  Double-check your Helmet/CORS settings
  Confirm your cookie flags (HttpOnly, Secure, SameSite)
  (Optional) Add HSTS headers
- - add and commit public rsa key
- - add helpers for rsa key rotation and generation, revokal, etc
  - add documentation
  - add logging, monitoring, and metrics (to spot bottlenecks and areas for optimization)
 
