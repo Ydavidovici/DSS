@@ -1,85 +1,76 @@
-import rateLimit from "express-rate-limit";
+// src/middleware/rateLimit.ts
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
 import crypto from "crypto";
 import type { Request } from "express";
 import { redis } from "../utils/redis";
 
-// ----- shared store (falls back to in-memory if Redis unavailable) -----
-const store = process.env.RATE_LIMIT_USE_MEMORY === "true"
+const createStore = (prefix: string) =>
+  process.env.RATE_LIMIT_USE_MEMORY === "true"
     ? undefined
     : new RedisStore({
-        // reuse your existing client; rate-limit-redis wants a sendCommand fn
         sendCommand: async (...args: string[]) => redis.sendCommand(args as any),
+        prefix,
     });
 
-// Helpful defaults
 const baseOpts = {
     standardHeaders: true,
     legacyHeaders: false,
-    store,
 };
 
-// ---------- Helpers ----------
-function norm(s?: string) {
-    return (s || "").trim().toLowerCase();
-}
+const norm = (s?: string) => (s || "").trim().toLowerCase();
+const hashToken = (s: string) => crypto.createHash("sha256").update(s).digest("hex");
+const loginWasSuccessful = (_req: Request, res: any) => res.statusCode < 400;
 
-function hashToken(s: string) {
-    return crypto.createHash("sha256").update(s).digest("hex");
-}
-
-function loginWasSuccessful(_req: Request, res: any) {
-    // Treat 2xx as success; count only failed attempts
-    return res.statusCode < 400;
-}
-
-// ---------- Limiters ----------
-
-// 1) Login: per-IP limiter
+// 1) per-IP
 export const loginIpLimiter = rateLimit({
     ...baseOpts,
+    store: createStore("rl:login:ip:"),
     windowMs: 15 * 60 * 1000,
     max: 10,
-    keyGenerator: (req) => req.ip,
+    keyGenerator: ipKeyGenerator, // <-- handles IPv6 correctly
     requestWasSuccessful: loginWasSuccessful,
     skipSuccessfulRequests: true,
     message: { message: "Too many login attempts from this IP. Try again later." },
 });
 
-// 2) Login: per-account limiter (username/email)
+// 2) per-account (fallback to IP)
 export const loginAccountLimiter = rateLimit({
     ...baseOpts,
+    store: createStore("rl:login:acct:"),
     windowMs: 15 * 60 * 1000,
     max: 10,
     keyGenerator: (req) => {
         const u = norm((req.body && (req.body.username || req.body.email)) as string);
-        return u || `anon:${req.ip}`;
+        return u || `anon:${ipKeyGenerator(req)}`; // <-- IPv6-safe fallback
     },
     requestWasSuccessful: loginWasSuccessful,
     skipSuccessfulRequests: true,
     message: { message: "Too many login attempts for this account. Try again later." },
 });
 
-// 3) Forgot/password-reset request: throttle by email (falls back to IP)
+// 3) reset by email (fallback to IP)
 export const resetLimiter = rateLimit({
     ...baseOpts,
-    windowMs: 15 * 60 * 1000, // 15 minutes
+    store: createStore("rl:reset:"),
+    windowMs: 15 * 60 * 1000,
     max: 5,
     keyGenerator: (req) => {
         const email = norm(req.body?.email);
-        return email || `ip:${req.ip}`;
+        return email || `ip:${ipKeyGenerator(req)}`;
     },
     message: "Too many reset attempts. Please try again later.",
 });
 
-// 4) Refresh: throttle by refresh token (hash) with IP fallback
+// 4) refresh by token hash (fallback to IP)
 export const refreshLimiter = rateLimit({
     ...baseOpts,
-    windowMs: 5 * 60 * 1000, // 5 minutes
+    store: createStore("rl:refresh:"),
+    windowMs: 5 * 60 * 1000,
     max: 20,
     keyGenerator: (req) => {
         const raw = req.cookies?.refresh_token as string | undefined;
-        return raw ? `rt:${hashToken(raw)}` : `ip:${req.ip}`;
+        return raw ? `rt:${hashToken(raw)}` : `ip:${ipKeyGenerator(req)}`;
     },
     message: "Too many refresh attempts. Please try again later.",
 });

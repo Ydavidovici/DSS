@@ -1,4 +1,4 @@
-// src/lib/jwt.ts
+// src/utils/jwt.ts  (or whichever file the app really imports)
 import fs from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
@@ -20,41 +20,44 @@ export interface JwtConfig {
     accessTtlSec: number;
     refreshTtlSec: number;
     clockToleranceSec: number;
-    jwksPath: string;
-    activeKid: string;
+    jwksPath: string;   // baseline default
+    activeKid: string;  // baseline default
 }
 
 const cfg: JwtConfig = {
     issuer: process.env.JWT_ISSUER ?? "dss-auth",
     audience: process.env.JWT_AUDIENCE ?? "dss-services",
-    accessTtlSec: Number(process.env.ACCESS_TTL_SEC ?? 900),       // 15m
-    refreshTtlSec: Number(process.env.REFRESH_TTL_SEC ?? 1209600),  // 14d
+    accessTtlSec: Number(process.env.ACCESS_TTL_SEC ?? 900),
+    refreshTtlSec: Number(process.env.REFRESH_TTL_SEC ?? 1209600),
     clockToleranceSec: Number(process.env.JWT_CLOCK_TOLERANCE_SEC ?? 5),
-    jwksPath: process.env.JWKS_PATH ?? path.resolve(process.cwd(), "keys"),
+
+    // sensible defaults for repo layout
+    jwksPath: process.env.JWKS_PATH ?? path.resolve(process.cwd(), "src/keys"),
     activeKid: process.env.CURRENT_KID ?? "auth-key-1",
 };
 
-type LoadedKey = {
+const keyMap = new Map<string, {
     kid: string;
     privateKey?: CryptoKey;
     publicKey?: CryptoKey;
     publicJwk?: any;
-};
+}>();
 
-const keyMap = new Map<string, LoadedKey>();
+// helpers read env at runtime
+const envKid = () => process.env.CURRENT_KID ?? cfg.activeKid;
+const envJwksPath = () => process.env.JWKS_PATH ?? cfg.jwksPath;
 
 async function loadKeysOnce() {
     if (keyMap.size) return;
 
-    const files = await fs.readdir(cfg.jwksPath);
-    // Expect files like: <kid>_private.pem and <kid>_public.pem
-    const byKid: Record<string, Partial<LoadedKey>> = {};
+    const jwksPath = envJwksPath();
+    const files = await fs.readdir(jwksPath);
+    const byKid: Record<string, any> = {};
 
     for (const file of files) {
         if (!file.endsWith(".pem")) continue;
-        const pem = await fs.readFile(path.join(cfg.jwksPath, file), "utf8");
+        const pem = await fs.readFile(path.join(jwksPath, file), "utf8");
         const kid = file.replace(/_(private|public)\.pem$/, "");
-
         byKid[kid] ||= { kid };
 
         if (file.includes("_private.pem")) {
@@ -70,116 +73,88 @@ async function loadKeysOnce() {
     for (const kid of Object.keys(byKid)) {
         const k = byKid[kid];
         if (!k.publicKey) throw new Error(`Missing public key for kid=${kid}`);
-        keyMap.set(kid, k as LoadedKey);
+        keyMap.set(kid, k);
     }
 
-    if (!keyMap.has(cfg.activeKid)) {
-        throw new Error(`Active kid '${cfg.activeKid}' not found in ${cfg.jwksPath}`);
+    const activeKid = envKid();
+    if (!keyMap.has(activeKid)) {
+        const available = [...keyMap.keys()].join(", ") || "(none)";
+        throw new Error(`Active kid '${activeKid}' not found in ${jwksPath}. Available: ${available}`);
     }
 }
 
-export async function getActiveKid() {
-    await loadKeysOnce();
-    return cfg.activeKid;
-}
-
-function assert(val: any, msg: string): asserts val {
-    if (!val) throw new Error(msg);
+function assert(v: any, msg: string): asserts v {
+    if (!v) throw new Error(msg);
 }
 
 export interface AccessClaims extends JWTPayload {
     typ: "access";
-    sub: string;              // user id
+    sub: string;
     sessionId: string;
-    scope?: string;           // space-delimited
+    scope?: string;
 }
 
 export interface RefreshClaims extends JWTPayload {
     typ: "refresh";
-    sub: string;              // user id
+    sub: string;
     sessionId: string;
 }
 
 async function sign(kind: TokenKind, claims: JWTPayload & { sub: string; sessionId: string }) {
     await loadKeysOnce();
-    const kid = cfg.activeKid;
+    const kid = envKid();
     const loaded = keyMap.get(kid)!;
     assert(loaded.privateKey, `No private key for active kid=${kid}`);
 
     const base = new SignJWT({ ...claims, typ: kind })
-        .setProtectedHeader({ alg: "RS256", kid } as JWSHeaderParameters)
-        .setIssuer(cfg.issuer)
-        .setAudience(cfg.audience)
-        .setSubject(claims.sub)
-        .setIssuedAt();
+      .setProtectedHeader({ alg: "RS256", kid } as JWSHeaderParameters)
+      .setIssuer(cfg.issuer)
+      .setAudience(cfg.audience)
+      .setSubject(claims.sub)
+      .setIssuedAt();
 
-    if (kind === "access") {
-        base.setExpirationTime(`${cfg.accessTtlSec}s`);
-    } else {
-        base.setExpirationTime(`${cfg.refreshTtlSec}s`);
-    }
+    base.setExpirationTime(kind === "access" ? `${cfg.accessTtlSec}s` : `${cfg.refreshTtlSec}s`);
     return base.sign(loaded.privateKey!);
 }
 
-export async function signAccessToken(input: {
-    userId: string;
-    sessionId: string;
-    scope?: string;
-}) {
-    return sign("access", {
-        sub: input.userId,
-        sessionId: input.sessionId,
-        scope: input.scope,
-    });
+export async function signAccessToken(input: { userId: string; sessionId: string; scope?: string }) {
+    return sign("access", { sub: input.userId, sessionId: input.sessionId, scope: input.scope });
 }
 
-export async function signRefreshToken(input: {
-    userId: string;
-    sessionId: string;
-    jti?: string; // allow caller to pass the stored jti
-}) {
+export async function signRefreshToken(input: { userId: string; sessionId: string; jti?: string }) {
     const jti = input.jti ?? randomUUID();
     return {
-        token: await sign("refresh", {
-            sub: input.userId,
-            sessionId: input.sessionId,
-            jti,
-        }),
+        token: await sign("refresh", { sub: input.userId, sessionId: input.sessionId, jti }),
         jti,
     };
 }
 
-export async function verifyToken<T extends JWTPayload>(
-    token: string,
-    expectedTyp: TokenKind
-): Promise<{ payload: T; headerKid: string }> {
+export async function verifyToken<T extends JWTPayload>(token: string, expectedTyp: TokenKind) {
     await loadKeysOnce();
-
-    const { payload, protectedHeader } = await jwtVerify(token, async (header) => {
-        const kid = header.kid;
-        assert(kid, "Missing kid");
-        const found = kid && keyMap.get(kid);
-        assert(found?.publicKey, `Unknown kid: ${kid}`);
-        return found!.publicKey!;
-    }, {
-        issuer: cfg.issuer,
-        audience: cfg.audience,
-        clockTolerance: cfg.clockToleranceSec,
-    });
+    const { payload, protectedHeader } = await jwtVerify(
+      token,
+      async (header) => {
+          const kid = header.kid;
+          assert(kid, "Missing kid");
+          const found = keyMap.get(kid);
+          assert(found?.publicKey, `Unknown kid: ${kid}`);
+          return found!.publicKey!;
+      },
+      {
+          issuer: cfg.issuer,
+          audience: cfg.audience,
+          clockTolerance: cfg.clockToleranceSec,
+      }
+    );
 
     assert((payload as any).typ === expectedTyp, "Unexpected token type");
     assert(typeof protectedHeader.kid === "string", "Invalid header.kid");
-
     return { payload: payload as T, headerKid: protectedHeader.kid! };
 }
 
 export async function getJWKS() {
     await loadKeysOnce();
-    return {
-        keys: Array.from(keyMap.values())
-            .map(k => k.publicJwk)
-            .filter(Boolean),
-    };
+    return { keys: Array.from(keyMap.values()).map(k => k.publicJwk).filter(Boolean) };
 }
 
 export const jwtConfig = cfg;
