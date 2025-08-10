@@ -275,11 +275,12 @@ curl -i -X POST http://localhost:4000/login \
 {
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "start": "node dist/index.js",
+    "start": "bun run src/index.js",
     "key:generate": "tsx src/utils/keyManagement.ts generate",
     "key:rotate": "tsx src/utils/keyManagement.ts rotate",
     "key:list": "tsx src/utils/keyManagement.ts list",
-    "key:revoke": "tsx src/utils/keyManagement.ts revoke"
+    "key:revoke": "tsx src/utils/keyManagement.ts revoke",
+    "key:show-active": "tsx src/utils/keyManagement.ts show-active"
   }
 }
 ```
