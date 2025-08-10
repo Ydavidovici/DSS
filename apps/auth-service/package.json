@@ -1,6 +1,6 @@
 {
   "name": "auth-service",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "bun run src/index.ts",
@@ -14,7 +14,6 @@
     "key:list": "tsx src/utils/keyManagement.ts list",
     "key:revoke": "tsx src/utils/keyManagement.ts revoke",
     "key:show-active": "tsx src/utils/keyManagement.ts show-active"
-
   },
   "dependencies": {
     "axios": "^1.11.0",

@@ -100,7 +100,15 @@ export interface RefreshClaims extends JWTPayload {
     sessionId: string;
 }
 
-async function sign(kind: TokenKind, claims: JWTPayload & { sub: string; sessionId: string }) {
+// add an options type
+type SignOpts = { audience?: string; ttlSec?: number };
+
+// change signature:
+async function sign(
+  kind: TokenKind,
+  claims: JWTPayload & { sub: string; sessionId: string },
+  opts: SignOpts = {}
+) {
     await loadKeysOnce();
     const kid = envKid();
     const loaded = keyMap.get(kid)!;
@@ -109,11 +117,12 @@ async function sign(kind: TokenKind, claims: JWTPayload & { sub: string; session
     const base = new SignJWT({ ...claims, typ: kind })
       .setProtectedHeader({ alg: "RS256", kid } as JWSHeaderParameters)
       .setIssuer(cfg.issuer)
-      .setAudience(cfg.audience)
+      .setAudience(opts.audience ?? cfg.audience)   // <-- override-able audience
       .setSubject(claims.sub)
       .setIssuedAt();
 
-    base.setExpirationTime(kind === "access" ? `${cfg.accessTtlSec}s` : `${cfg.refreshTtlSec}s`);
+    const ttl = opts.ttlSec ?? (kind === "access" ? cfg.accessTtlSec : cfg.refreshTtlSec);
+    base.setExpirationTime(`${ttl}s`);
     return base.sign(loaded.privateKey!);
 }
 
@@ -121,15 +130,66 @@ export async function signAccessToken(input: { userId: string; sessionId: string
     return sign("access", { sub: input.userId, sessionId: input.sessionId, scope: input.scope });
 }
 
-export async function signRefreshToken(input: { userId: string; sessionId: string; jti?: string }) {
+export async function signRefreshToken(input: {
+    userId: string;
+    sessionId: string;
+    jti?: string;
+    carry?: {
+        roles?: unknown[];
+        preferred_username?: string;
+        email?: string;
+    };
+}) {
     const jti = input.jti ?? randomUUID();
     return {
-        token: await sign("refresh", { sub: input.userId, sessionId: input.sessionId, jti }),
+        token: await sign("refresh", {
+            sub: input.userId,
+            sessionId: input.sessionId,
+            jti,
+            ...(input.carry || {}),  // <— embed minimal claims for refresh -> access
+        }),
         jti,
     };
 }
 
-export async function verifyToken<T extends JWTPayload>(token: string, expectedTyp: TokenKind) {
+export async function signServiceToken(params: {
+    scope: string | string[];
+    audience?: string;   // default: db-service
+    azp?: string;        // default: auth-service
+    ttlSec?: number;     // default: 60
+}) {
+    const scopeStr = Array.isArray(params.scope) ? params.scope.join(' ') : params.scope;
+    const sessionId = randomUUID();
+    return sign("access", {
+        sub: "client_auth",
+        sessionId,
+        scope: scopeStr,
+        azp: params.azp ?? "auth-service",
+    }, { audience: params.audience ?? "db-service", ttlSec: params.ttlSec ?? 60 });
+}
+
+export async function signUserAccessToken(input: {
+    userId: string;
+    roles?: unknown[];
+    preferred_username?: string;
+    email?: string;
+    scope?: string;
+    audience?: string;   // leave undefined to use default user audience
+    ttlSec?: number;
+    extra?: Record<string, unknown>;
+}) {
+    return sign("access", {
+        sub: input.userId,
+        sessionId: randomUUID(),
+        roles: input.roles,
+        preferred_username: input.preferred_username,
+        email: input.email,
+        scope: input.scope,
+        ...(input.extra || {}),
+    }, { audience: input.audience, ttlSec: input.ttlSec });
+}
+
+export async function verifyToken<T extends JWTPayload>(token: string, expectedTyp: TokenKind = "access") {
     await loadKeysOnce();
     const { payload, protectedHeader } = await jwtVerify(
       token,
@@ -140,11 +200,7 @@ export async function verifyToken<T extends JWTPayload>(token: string, expectedT
           assert(found?.publicKey, `Unknown kid: ${kid}`);
           return found!.publicKey!;
       },
-      {
-          issuer: cfg.issuer,
-          audience: cfg.audience,
-          clockTolerance: cfg.clockToleranceSec,
-      }
+      { issuer: cfg.issuer, audience: cfg.audience, clockTolerance: cfg.clockToleranceSec }
     );
 
     assert((payload as any).typ === expectedTyp, "Unexpected token type");

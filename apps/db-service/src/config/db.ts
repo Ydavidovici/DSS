@@ -1,6 +1,8 @@
 // src/config/db.ts
 import Knex from 'knex';
 import * as dotenv from 'dotenv';
+import path from 'path';
+import { TsRecursiveMigrationSource } from './migrationSource';
 dotenv.config();
 
 export const knex = Knex({
@@ -18,8 +20,13 @@ export const knex = Knex({
     max: Number(process.env.DB_POOL_MAX) || 20,
     idleTimeoutMillis: 30000
   },
+  // swap the directory option for a migrationSource that scans subfolders
   migrations: {
-    directory: './migrations',
-    tableName: 'knex_migrations'
+    tableName: 'knex_migrations',
+    migrationSource: new TsRecursiveMigrationSource(path.join(process.cwd(), 'migrations'))
   }
 });
+
+export async function closeDB() {
+  await knex.destroy();
+}
