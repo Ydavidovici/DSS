@@ -1,8 +1,9 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
-import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 
+// --- Redis + mailer mocks (minimal) ---
 vi.mock('../utils/redis', () => {
   return {
     redis: {
@@ -18,14 +19,23 @@ vi.mock('../utils/redis', () => {
   };
 });
 vi.mock('../utils/mailer', () => ({ mailer: { sendMail: vi.fn().mockResolvedValue({}) } }));
+vi.mock('../utils/tokenBlacklist', () => ({
+  revokeToken: vi.fn().mockResolvedValue(undefined),
+  isRevoked: vi.fn().mockResolvedValue(false),
+}));
 
 describe('Verify & UserInfo', () => {
   let app: express.Express;
-  let signAccessToken: (payload: any, ttl?: number) => Promise<string>;
+  let signUserAccessToken: (input: any) => Promise<string>;
 
   beforeAll(async () => {
+    // Ensure required env before importing router
+    process.env.DB_SERVICE_API_URL ||= 'http://db-service:4000/api/v1';
+    process.env.DB_SERVICE_BASE_URL ||= 'http://db-service:4000';
+    process.env.JWT_ISSUER ||= 'https://issuer.test';
+
     const router = (await import('../routes/auth')).default;
-    ({ signAccessToken } = await import('../utils/jwt'));
+    ({ signUserAccessToken } = await import('../utils/jwt'));
 
     app = express();
     app.use(express.json());
@@ -33,9 +43,12 @@ describe('Verify & UserInfo', () => {
     app.use('/', router);
   });
 
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
   it('GET /verify with valid access token returns user payload', async () => {
-    const token = await signAccessToken({
-      sub: 'u1',
+    const token = await signUserAccessToken({
+      userId: 'u1',
       roles: ['user'],
       preferred_username: 'alice',
       email: 'a@ex.com',
@@ -46,8 +59,8 @@ describe('Verify & UserInfo', () => {
   });
 
   it('GET /userinfo returns subset claims', async () => {
-    const token = await signAccessToken({
-      sub: 'u1',
+    const token = await signUserAccessToken({
+      userId: 'u1',
       roles: ['user'],
       preferred_username: 'alice',
       email: 'a@ex.com',
@@ -61,8 +74,8 @@ describe('Verify & UserInfo', () => {
   });
 
   it('rejects expired token', async () => {
-    const token = await signAccessToken({ sub: 'u1' }, 1); // 1s TTL
-    vi.advanceTimersByTime(2000);
+    const token = await signUserAccessToken({ userId: 'u1', ttlSec: 1 });
+    vi.setSystemTime(new Date(Date.now() + 2000)); // after expiry
     await request(app).get('/verify').set('Authorization', `Bearer ${token}`).expect(401);
   });
 });
