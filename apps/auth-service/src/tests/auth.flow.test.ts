@@ -1,7 +1,7 @@
+// src/tests/auth.flow.test.ts
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
-import bcrypt from 'bcrypt';
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 
 // --- axios mock (DB-service calls) ---
@@ -46,6 +46,82 @@ vi.mock('../utils/tokenBlacklist', () => ({
     isRevoked: vi.fn().mockResolvedValue(false),
 }));
 
+// --- rate limit middleware: make them no-ops for this test ---
+vi.mock('../middleware/rateLimit', () => ({
+    loginIpLimiter: (_req: any, _res: any, next: any) => next(),
+    loginAccountLimiter: (_req: any, _res: any, next: any) => next(),
+    resetLimiter: (_req: any, _res: any, next: any) => next(),
+    refreshLimiter: (_req: any, _res: any, next: any) => next(),
+}));
+
+// --- JWT utils: in-memory token registry so we don't need real keys ---
+vi.mock('../utils/jwt', () => {
+    const tokenStore = new Map<string, any>();
+
+    function makeToken(prefix: string) {
+        return `${prefix}-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+    }
+
+    async function signServiceToken(input: any) {
+        const token = makeToken('svc');
+        const now = Math.floor(Date.now() / 1000);
+        tokenStore.set(token, { ...input, typ: 'service', iat: now, exp: now + (input?.ttlSec ?? 300) });
+        return token;
+    }
+
+    async function signUserAccessToken(input: any) {
+        const token = makeToken('access');
+        const now = Math.floor(Date.now() / 1000);
+        const payload = {
+            sub: String(input.userId),
+            roles: input.roles ?? [],
+            preferred_username: input.preferred_username,
+            email: input.email,
+            scope: input.scope,
+            ...(input.extra ?? {}),
+            jti: makeToken('jti'),
+            typ: 'access',
+            iat: now,
+            exp: now + (input.ttlSec ?? 900),
+        };
+        tokenStore.set(token, payload);
+        return token;
+    }
+
+    async function signRefreshToken(input: any) {
+        const token = makeToken('refresh');
+        const now = Math.floor(Date.now() / 1000);
+        const payload = {
+            sub: String(input.userId),
+            jti: input.jti ?? makeToken('jti'),
+            sessionId: input.sessionId,
+            roles: input.carry?.roles ?? [],
+            preferred_username: input.carry?.preferred_username,
+            email: input.carry?.email,
+            typ: 'refresh',
+            iat: now,
+            exp: now + (input.ttlSec ?? 7 * 24 * 3600),
+        };
+        tokenStore.set(token, payload);
+        return { token };
+    }
+
+    async function verifyToken(token: string, expectedTyp: 'access' | 'refresh' = 'access') {
+        const payload = tokenStore.get(token);
+        if (!payload) throw new Error('Unknown token');
+        if (expectedTyp && payload.typ !== expectedTyp) throw new Error('Wrong token type');
+        const now = Math.floor(Date.now() / 1000);
+        if (typeof payload.exp === 'number' && payload.exp <= now) throw new Error('Expired token');
+        return { payload };
+    }
+
+    async function getJWKS() {
+        return { keys: [] };
+    }
+
+    return { signServiceToken, signUserAccessToken, signRefreshToken, verifyToken, getJWKS };
+});
+
 describe('Auth flows', () => {
     let app: express.Express;
 
@@ -74,34 +150,39 @@ describe('Auth flows', () => {
         axiosMock.post.mockResolvedValueOnce({ status: 201, data: { id: 'u1' } }); // DB create returns id
 
         const res = await request(app)
-          .post('/register')
-          .send({
-              username: 'alice',
-              password: 's3cret',
-              email: 'a@ex.com',
-              redirect_uri: 'https://app1.localhost:3000/auth/verified',
-          })
-          .expect(201);
+            .post('/register')
+            .send({
+                username: 'alice',
+                password: 's3cret',
+                email: 'a@ex.com',
+                redirect_uri: 'https://app1.localhost:3000/auth/verified',
+            })
+            .expect(201);
 
         expect(res.text).toMatch(/User created/i);
         // DB create called with hashed password
         expect(axiosMock.post).toHaveBeenCalledWith(
-          expect.stringContaining('/users'),
-          expect.objectContaining({ username: 'alice', email: 'a@ex.com', password_hash: expect.any(String) }),
-          expect.objectContaining({ headers: expect.any(Object) })
+            expect.stringContaining('/users'),
+            expect.objectContaining({ username: 'alice', email: 'a@ex.com', password_hash: expect.any(String) }),
+            expect.objectContaining({ headers: expect.any(Object) })
         );
     });
 
     it('login → refresh rotation → logout', async () => {
-        const hash = await bcrypt.hash('s3cret', 10);
-        axiosMock.get.mockImplementation((url: string) => {
-            if (url.includes('/internal/auth/users/alice')) {
+        // db-service verify-password endpoint mock
+        axiosMock.post.mockImplementation((url: string, body?: any) => {
+            if (url.includes('/internal/auth/verify-password')) {
+                // Expect the auth service to forward username+password
+                expect(body).toMatchObject({ usernameOrEmail: 'alice', password: 's3cret' });
                 return Promise.resolve({
                     status: 200,
-                    data: { id: 'u1', username: 'alice', email: 'a@ex.com', verified: true, password_hash: hash, roles: ['user'] },
+                    data: {
+                        ok: true,
+                        user: { id: 'u1', username: 'alice', email: 'a@ex.com', verified: true, roles: ['user'] }, // sanitized
+                    },
                 });
             }
-            return Promise.reject(new Error('unknown path'));
+            return Promise.reject(new Error(`unknown POST ${url}`));
         });
 
         // Login
@@ -137,9 +218,9 @@ describe('Auth flows', () => {
 
         const res = await request(app).get('/verify-email').query({ token }).expect(302);
         expect(axiosMock.patch).toHaveBeenCalledWith(
-          expect.stringContaining('/users/u1'),
-          expect.objectContaining({ verified: true }),
-          expect.any(Object)
+            expect.stringContaining('/users/u1'),
+            expect.objectContaining({ verified: true }),
+            expect.any(Object)
         );
         expect(res.headers.location).toMatch(/status=verified/);
     });
@@ -156,9 +237,9 @@ describe('Auth flows', () => {
 
         await request(app).post('/reset-password').send({ token, newPassword: 'N3wPass!@#' }).expect(200);
         expect(axiosMock.patch).toHaveBeenCalledWith(
-          expect.stringContaining('/users/u1'),
-          expect.objectContaining({ password_hash: expect.any(String) }),
-          expect.any(Object)
+            expect.stringContaining('/users/u1'),
+            expect.objectContaining({ password_hash: expect.any(String) }),
+            expect.any(Object)
         );
     });
 });
