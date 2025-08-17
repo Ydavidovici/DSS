@@ -2,45 +2,47 @@ import { FastifyInstance } from 'fastify';
 import { UsersController } from './user.controller';
 
 export default async function userRoutes(app: FastifyInstance) {
-  // Public reads
-  app.get(
-    '/api/v1/users/:username',
-    { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
-    UsersController.getByUsername
-  );
+    const AZP = process.env.AUTH_SERVICE_AZP || 'auth-service';
+    const svc = (scopes: string[]) => ({ preHandler: app.requireAuth({ scopes, azp: AZP }) });
 
-  app.get(
-    '/api/v1/users/email/:email',
-    { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
-    UsersController.getByEmail
-  );
+    // ────────────────────────────────────────────────────────────────────────────
+    // Internal (service-to-service) reads — sanitized (no password_hash)
+    // If you still want username/email lookups, make them INTERNAL, not public.
+    app.get('/internal/auth/users/:username',
+        svc(['users:read']),
+        UsersController.internalGetByUsername
+    );
 
-  // Protected writes
-  app.post(
-    '/api/v1/users',
-    {
-      preHandler: app.requireAuth({ scopes: ['users:create'], azp: process.env.AUTH_SERVICE_AZP || 'auth-service' }),
-      config: { rateLimit: { max: 20, timeWindow: '1 minute' } }
-    },
-    UsersController.create
-  );
+    app.get('/internal/auth/users/email/:email',
+        svc(['users:read']),
+        UsersController.internalGetByEmail
+    );
 
-  app.patch(
-    '/api/v1/users/:id',
-    { preHandler: app.requireAuth({ scopes: ['users:update'] }) },
-    UsersController.update
-  );
+    // OPTIONAL: If you truly need public or end-user reads, gate with end-user auth and heavy RL.
+    // app.get('/api/v1/users/:username', app.requireAuth(), UsersController.getByUsername);
+    // app.get('/api/v1/users/email/:email', app.requireAuth(), UsersController.getByEmail);
 
-  app.delete(
-    '/api/v1/users/:id',
-    { preHandler: app.requireAuth({ scopes: ['users:delete'] }) },
-    UsersController.remove
-  );
+    // ────────────────────────────────────────────────────────────────────────────
+    // Internal password verification — avoids exposing password_hash anywhere
+    app.post('/internal/auth/verify-password',
+        svc(['user.verify:password']),
+        UsersController.internalVerifyPassword
+    );
 
-  // Internal credential lookup (auth-service only)
-  app.get(
-    '/internal/auth/users/:username',
-    { preHandler: app.requireAuth({ scopes: ['user.read:credentials'], azp: process.env.AUTH_SERVICE_AZP || 'auth-service' }) },
-    UsersController.internalGetRaw
-  );
+    // ────────────────────────────────────────────────────────────────────────────
+    // Writes (service-to-service only; scope + azp enforced)
+    app.post('/api/v1/users',
+        { ...svc(['users:create']), config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+        UsersController.create
+    );
+
+    app.patch('/api/v1/users/:id',
+        svc(['users:update']),
+        UsersController.update
+    );
+
+    app.delete('/api/v1/users/:id',
+        svc(['users:delete']),
+        UsersController.remove
+    );
 }

@@ -3,207 +3,571 @@ import request from 'supertest';
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { generateKeyPairSync } from 'node:crypto';
 import { SignJWT, importPKCS8 } from 'jose';
+import { ZodError } from 'zod';
 
-// --- Mock the users service layer so we don't need a real DB ---
+// NOTE: Do NOT compute values used by the mock here (hoisting issue).
+// We'll compute hashes inside the vi.mock factory.
+
+// Mock the users service layer (replace with real DB if you want end-to-end)
 vi.mock('../modules/users/user.service', () => {
-  const row = {
-    id: 'u1',
-    username: 'alice',
-    email: 'a@ex.com',
-    verified: true,
-    roles: ['user'],
-    password_hash: '$2b$10$abcdef...' // fake bcrypt hash
-  };
+    // Everything inside here runs at hoist time safely.
+    const bcrypt = require('bcryptjs'); // require is fine in tests
+    const hashAlice = bcrypt.hashSync('s3cret', 10);
+    const hashBob   = bcrypt.hashSync('hunter2', 10);
 
-  return {
-    createUser: vi.fn(async (b) => ({
-      ...row,
-      id: 'u2',
-      username: b.username ?? row.username,
-      email: b.email ?? row.email,
-      verified: !!b.verified,
-      roles: b.roles ?? [],
-      // controller should strip this; keep it undefined here
-      password_hash: undefined
-    })),
+    const userAliceRaw = {
+        id: 'u1',
+        username: 'alice',
+        email: 'a@ex.com',
+        verified: true,
+        roles: ['user'],
+        password_hash: hashAlice,
+        created_at: '2024-01-01T00:00:00.000Z',
+        updated_at: '2024-01-01T00:00:00.000Z',
+        deleted_at: null
+    };
 
-    getByUsername: vi.fn(async (u: string) =>
-      u === 'alice' ? { ...row, password_hash: undefined } : null
-    ),
+    const deletedIds = new Set<string>();
 
-    getByEmail: vi.fn(async (e: string) =>
-      e === 'a@ex.com' ? { ...row, password_hash: undefined } : null
-    ),
+    return {
+        createUser: vi.fn(async (b: any) => {
+            if (b.username === 'dupe' || b.email === 'dupe@ex.com') {
+                const err: any = new Error('duplicate');
+                err.code = '23505';
+                throw err;
+            }
+            return {
+                id: 'u2',
+                username: b.username,
+                email: b.email,
+                verified: !!b.verified,
+                roles: b.roles ?? [],
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                deleted_at: null
+            };
+        }),
 
-    updateUser: vi.fn(async (_id: string, _body: any) => ({
-      ...row,
-      password_hash: undefined
-    })),
+        getByUsername: vi.fn(async (u: string) => {
+            if (deletedIds.has('u1')) return null;
+            if (u === 'alice') {
+                const { password_hash, ...pub } = userAliceRaw;
+                return pub;
+            }
+            return null;
+        }),
 
-    softDeleteUser: vi.fn(async (_id: string) => true),
+        getByEmail: vi.fn(async (e: string) => {
+            if (deletedIds.has('u1')) return null;
+            if (e === 'a@ex.com') {
+                const { password_hash, ...pub } = userAliceRaw;
+                return pub;
+            }
+            return null;
+        }),
 
-    getRawByUsername: vi.fn(async (u: string) =>
-      u === 'alice' ? { ...row } : null
-    ),
-  };
+        getRawByUsername: vi.fn(async (u: string) => {
+            if (deletedIds.has('u1')) return null;
+            return u === 'alice' ? { ...userAliceRaw } : null;
+        }),
+
+        getRawByEmail: vi.fn(async (e: string) => {
+            if (deletedIds.has('u1')) return null;
+            return e === 'a@ex.com' ? { ...userAliceRaw } : null;
+        }),
+
+        updateUser: vi.fn(async (id: string, patch: any) => {
+            if (id === 'missing') return null;
+            if (id === 'dupe') {
+                const err: any = new Error('duplicate');
+                err.code = '23505';
+                throw err;
+            }
+            return {
+                id,
+                username: 'alice',
+                email: 'a@ex.com',
+                verified: patch.verified ?? true,
+                roles: 'roles' in patch ? (patch.roles ?? []) : ['user'],
+                created_at: '2024-01-01T00:00:00.000Z',
+                updated_at: new Date().toISOString(),
+                deleted_at: null
+            };
+        }),
+
+        softDeleteUser: vi.fn(async (id: string) => {
+            if (id === 'u1') { deletedIds.add(id); return true; }
+            return false;
+        }),
+    };
 });
 
 // Register Fastify plugins & routes *after* mocks
 import internalGuard from '../plugins/jwt';
 import userRoutes from '../modules/users/user.routes';
 
-describe('[db-service] users auth & internal comms', () => {
-  const ISS = 'https://issuer.test';
-  const AUD = 'db-service';
-  const AZP = 'auth-service';
+describe('[db-service] users end-to-end (with mocked service + real JWT guard)', () => {
+    const ISS = 'https://issuer.test';
+    const AUD = 'db-service';
+    const AZP = 'auth-service';
 
-  let app: ReturnType<typeof Fastify>;
-  let baseUrl: string;
-  let privatePem: string;
-  let publicPem: string;
+    let app: ReturnType<typeof Fastify>;
+    let baseUrl: string;
+    let privatePem: string;
+    let publicPem: string;
 
-  beforeAll(async () => {
-    // Generate a one-off RSA pair; db-service will verify with the public part
-    const keys = generateKeyPairSync('rsa', {
-      modulusLength: 2048,
-      publicKeyEncoding:  { type: 'spki',  format: 'pem' },
-      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    beforeAll(async () => {
+        // Generate RSA keypair for signing test tokens
+        const keys = generateKeyPairSync('rsa', {
+            modulusLength: 2048,
+            publicKeyEncoding:  { type: 'spki',  format: 'pem' },
+            privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+        });
+        privatePem = keys.privateKey;
+        publicPem  = keys.publicKey;
+
+        // Configure jwt plugin (PEM mode)
+        process.env.AUTH_MODE = 'PEM';
+        process.env.AUTH_PUBLIC_KEY_PEM = publicPem;
+        process.env.AUTH_ISSUER = ISS;
+        process.env.AUTH_AUDIENCE = AUD;
+        process.env.AUTH_SERVICE_AZP = AZP;
+
+        app = Fastify({ logger: false });
+
+        // Minimal central error handler (map Zod errors → 400)
+        app.setErrorHandler((err: any, _req, reply) => {
+            if (err instanceof ZodError) {
+                return reply
+                    .code(400)
+                    .send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid request', details: err.issues } });
+            }
+            const status = err.httpCode || 500;
+            return reply.code(status).send({ error: err.public ?? { code: 'INTERNAL_ERROR', message: 'Unexpected error' } });
+        });
+
+        await app.register(internalGuard);
+        await app.register(userRoutes);
+
+        baseUrl = await app.listen({ port: 0 });
     });
-    privatePem = keys.privateKey;
-    publicPem  = keys.publicKey;
 
-    // Configure jwt plugin to accept PEM and enforce iss/aud
-    process.env.AUTH_MODE = 'PEM';
-    process.env.AUTH_PUBLIC_KEY_PEM = publicPem;
-    process.env.AUTH_ISSUER = ISS;
-    process.env.AUTH_AUDIENCE = AUD;
-    process.env.AUTH_SERVICE_AZP = AZP;
+    afterAll(async () => {
+        await app.close();
+    });
 
-    app = Fastify({ logger: false });
-    await app.register(internalGuard);
-    await app.register(userRoutes);
+    async function signSvcToken({
+                                    scope,
+                                    azp = AZP,
+                                    iss = ISS,
+                                    aud = AUD,
+                                    ttlSec = 60,
+                                    kid = 'test-key',
+                                    addPermissionsArray = false,
+                                    expired = false,
+                                }: {
+        scope?: string | string[];
+        azp?: string;
+        iss?: string;
+        aud?: string;
+        ttlSec?: number;
+        kid?: string;
+        addPermissionsArray?: boolean;
+        expired?: boolean;
+    } = {}) {
+        const key = await importPKCS8(privatePem, 'RS256');
+        const scopes = Array.isArray(scope) ? scope.join(' ') : (scope ?? '');
 
-    baseUrl = await app.listen({ port: 0 });
-  });
+        const jwt = new SignJWT({
+            typ: 'access',
+            scope: scopes,
+            azp,
+            ...(addPermissionsArray ? { permissions: scopes ? scopes.split(' ') : [] } : {}),
+        })
+            .setProtectedHeader({ alg: 'RS256', kid })
+            .setIssuer(iss)
+            .setAudience(aud)
+            .setSubject('client_auth')
+            .setIssuedAt();
 
-  afterAll(async () => {
-    await app.close();
-  });
+        jwt.setExpirationTime(expired ? Math.floor(Date.now() / 1000) - 10 : `${ttlSec}s`);
+        return jwt.sign(key);
+    }
+});
 
-  async function signServiceToken(scope: string, azp: string = AZP, ttlSec = 60) {
-    const key = await importPKCS8(privatePem, 'RS256');
-    return new SignJWT({ typ: 'access', scope, azp })
-      .setProtectedHeader({ alg: 'RS256', kid: 'test-key' })
-      .setIssuer(ISS)
-      .setAudience(AUD)
-      .setSubject('client_auth')
-      .setIssuedAt()
-      .setExpirationTime(`${ttlSec}s`)
-      .sign(key);
-  }
+// Register Fastify plugins & routes after mocks
+import internalGuard from '../plugins/jwt';
+import userRoutes from '../modules/users/user.routes';
 
-  it('public GET /api/v1/users/:username returns sanitized user (no password_hash)', async () => {
-    const res = await request(baseUrl)
-      .get('/api/v1/users/alice')
-      .expect(200);
+// ───────────────────────────────────────────────────────────────────────────────
 
-    expect(res.body.username).toBe('alice');
-    expect(res.body).not.toHaveProperty('password_hash');
-  });
+describe('[db-service] users end-to-end (with mocked service + real JWT guard)', () => {
+    const ISS = 'https://issuer.test';
+    const AUD = 'db-service';
+    const AZP = 'auth-service';
 
-  it('public GET /api/v1/users/email/:email returns sanitized user', async () => {
-    const res = await request(baseUrl)
-      .get('/api/v1/users/email/a@ex.com')
-      .expect(200);
+    let app: ReturnType<typeof Fastify>;
+    let baseUrl: string;
+    let privatePem: string;
+    let publicPem: string;
 
-    expect(res.body.email).toBe('a@ex.com');
-    expect(res.body).not.toHaveProperty('password_hash');
-  });
+    beforeAll(async () => {
+        // Generate RSA keypair for signing in-tests tokens
+        const keys = generateKeyPairSync('rsa', {
+            modulusLength: 2048,
+            publicKeyEncoding:  { type: 'spki',  format: 'pem' },
+            privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+        });
+        privatePem = keys.privateKey;
+        publicPem  = keys.publicKey;
 
-  it('internal GET /internal/auth/users/:username requires bearer token', async () => {
-    await request(baseUrl)
-      .get('/internal/auth/users/alice')
-      .expect(401);
-  });
+        // Configure jwt plugin (PEM mode)
+        process.env.AUTH_MODE = 'PEM';
+        process.env.AUTH_PUBLIC_KEY_PEM = publicPem;
+        process.env.AUTH_ISSUER = ISS;
+        process.env.AUTH_AUDIENCE = AUD;
+        process.env.AUTH_SERVICE_AZP = AZP;
 
-  it('internal GET rejects when scope is wrong', async () => {
-    const badScope = await signServiceToken('users:create');
-    await request(baseUrl)
-      .get('/internal/auth/users/alice')
-      .set('Authorization', `Bearer ${badScope}`)
-      .expect(403);
-  });
+        app = Fastify({ logger: false });
 
-  it('internal GET rejects when azp is wrong', async () => {
-    const wrongAzp = await signServiceToken('user.read:credentials', 'some-other-service');
-    await request(baseUrl)
-      .get('/internal/auth/users/alice')
-      .set('Authorization', `Bearer ${wrongAzp}`)
-      .expect(403);
-  });
+        // Minimal central error handler (map Zod errors → 400; duplicate handled by service)
+        app.setErrorHandler((err: any, _req, reply) => {
+            if (err instanceof ZodError) {
+                return reply.code(400).send({ error: { code: 'VALIDATION_ERROR', message: 'Invalid request', details: err.issues } });
+            }
+            const status = err.httpCode || 500;
+            return reply.code(status).send({ error: err.public ?? { code: 'INTERNAL_ERROR', message: 'Unexpected error' } });
+        });
 
-  it('internal GET succeeds with correct scope+azp and includes password_hash', async () => {
-    const ok = await signServiceToken('user.read:credentials', AZP);
-    const res = await request(baseUrl)
-      .get('/internal/auth/users/alice')
-      .set('Authorization', `Bearer ${ok}`)
-      .expect(200);
+        await app.register(internalGuard);
+        await app.register(userRoutes);
 
-    expect(res.body.username).toBe('alice');
-    expect(res.body).toHaveProperty('password_hash');
-  });
+        baseUrl = await app.listen({ port: 0 });
+    });
 
-  it('POST /api/v1/users requires users:create scope', async () => {
-    // no auth -> 401
-    await request(baseUrl)
-      .post('/api/v1/users')
-      .send({ username: 'bob', email: 'b@ex.com', password_hash: 'x' })
-      .expect(401);
+    afterAll(async () => {
+        await app.close();
+    });
 
-    // wrong scope -> 403
-    const wrong = await signServiceToken('users:update');
-    await request(baseUrl)
-      .post('/api/v1/users')
-      .set('Authorization', `Bearer ${wrong}`)
-      .send({ username: 'bob', email: 'b@ex.com', password_hash: 'x' })
-      .expect(403);
+    async function signSvcToken({
+                                    scope,
+                                    azp = AZP,
+                                    iss = ISS,
+                                    aud = AUD,
+                                    ttlSec = 60,
+                                    kid = 'test-key',
+                                    addPermissionsArray = false,
+                                    expired = false,
+                                }: {
+        scope?: string | string[];
+        azp?: string;
+        iss?: string;
+        aud?: string;
+        ttlSec?: number;
+        kid?: string;
+        addPermissionsArray?: boolean;
+        expired?: boolean;
+    } = {}) {
+        const key = await importPKCS8(privatePem, 'RS256');
+        const scopes = Array.isArray(scope) ? scope.join(' ') : (scope ?? '');
 
-    // correct scope -> 201
-    const ok = await signServiceToken('users:create');
-    const res = await request(baseUrl)
-      .post('/api/v1/users')
-      .set('Authorization', `Bearer ${ok}`)
-      .send({ username: 'bob', email: 'b@ex.com', password_hash: 'x' })
-      .expect(201);
+        const jwt = new SignJWT({
+            typ: 'access',
+            scope: scopes,
+            azp,
+            ...(addPermissionsArray ? { permissions: scopes ? scopes.split(' ') : [] } : {}),
+        })
+            .setProtectedHeader({ alg: 'RS256', kid })
+            .setIssuer(iss)
+            .setAudience(aud)
+            .setSubject('client_auth')
+            .setIssuedAt();
 
-    expect(res.body.username).toBe('bob');
-    expect(res.body).not.toHaveProperty('password_hash');
-  });
+        jwt.setExpirationTime(expired ? Math.floor(Date.now() / 1000) - 10 : `${ttlSec}s`);
+        return jwt.sign(key);
+    }
 
-  it('PATCH /api/v1/users/:id requires users:update scope', async () => {
-    // no auth -> 401
-    await request(baseUrl)
-      .patch('/api/v1/users/u1')
-      .send({ verified: true })
-      .expect(401);
+    // ────────────────────────────────────────────────────────────────────────────
+    // Auth guard basics
+    // ────────────────────────────────────────────────────────────────────────────
 
-    // wrong scope -> 403
-    const wrong = await signServiceToken('users:create');
-    await request(baseUrl)
-      .patch('/api/v1/users/u1')
-      .set('Authorization', `Bearer ${wrong}`)
-      .send({ verified: true })
-      .expect(403);
+    it('401 when missing bearer token on internal read', async () => {
+        await request(baseUrl).get('/internal/auth/users/alice').expect(401);
+    });
 
-    // correct scope -> 200 and sanitized
-    const ok = await signServiceToken('users:update');
-    const res = await request(baseUrl)
-      .patch('/api/v1/users/u1')
-      .set('Authorization', `Bearer ${ok}`)
-      .send({ verified: true })
-      .expect(200);
+    it('401 when wrong issuer', async () => {
+        const bad = await signSvcToken({ scope: 'users:read', iss: 'https://evil.example' });
+        await request(baseUrl)
+            .get('/internal/auth/users/alice')
+            .set('Authorization', `Bearer ${bad}`)
+            .expect(401);
+    });
 
-    expect(res.body.verified).toBe(true);
-    expect(res.body).not.toHaveProperty('password_hash');
-  });
+    it('401 when wrong audience', async () => {
+        const bad = await signSvcToken({ scope: 'users:read', aud: 'other-service' });
+        await request(baseUrl)
+            .get('/internal/auth/users/alice')
+            .set('Authorization', `Bearer ${bad}`)
+            .expect(401);
+    });
+
+    it('401 when token expired', async () => {
+        const expired = await signSvcToken({ scope: 'users:read', expired: true });
+        await request(baseUrl)
+            .get('/internal/auth/users/alice')
+            .set('Authorization', `Bearer ${expired}`)
+            .expect(401);
+    });
+
+    it('403 when missing required scope', async () => {
+        const tok = await signSvcToken({ scope: '' });
+        await request(baseUrl)
+            .get('/internal/auth/users/alice')
+            .set('Authorization', `Bearer ${tok}`)
+            .expect(403);
+    });
+
+    it('403 when wrong azp', async () => {
+        const tok = await signSvcToken({ scope: 'users:read', azp: 'frontend-app' });
+        await request(baseUrl)
+            .get('/internal/auth/users/alice')
+            .set('Authorization', `Bearer ${tok}`)
+            .expect(403);
+    });
+
+    it('supports scope in permissions array', async () => {
+        const tok = await signSvcToken({ scope: 'users:read', addPermissionsArray: true });
+        await request(baseUrl)
+            .get('/internal/auth/users/alice')
+            .set('Authorization', `Bearer ${tok}`)
+            .expect(200);
+    });
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // Internal sanitized reads
+    // ────────────────────────────────────────────────────────────────────────────
+
+    it('GET /internal/auth/users/:username returns sanitized user', async () => {
+        const tok = await signSvcToken({ scope: 'users:read' });
+        const res = await request(baseUrl)
+            .get('/internal/auth/users/alice')
+            .set('Authorization', `Bearer ${tok}`)
+            .expect(200);
+
+        expect(res.body.username).toBe('alice');
+        expect(res.body).not.toHaveProperty('password_hash');
+    });
+
+    it('GET /internal/auth/users/email/:email returns sanitized user', async () => {
+        const tok = await signSvcToken({ scope: 'users:read' });
+        const res = await request(baseUrl)
+            .get('/internal/auth/users/email/a@ex.com')
+            .set('Authorization', `Bearer ${tok}`)
+            .expect(200);
+
+        expect(res.body.email).toBe('a@ex.com');
+        expect(res.body).not.toHaveProperty('password_hash');
+    });
+
+    it('internal reads return 404 for unknown users', async () => {
+        const tok = await signSvcToken({ scope: 'users:read' });
+        await request(baseUrl)
+            .get('/internal/auth/users/bob')
+            .set('Authorization', `Bearer ${tok}`)
+            .expect(404);
+
+        await request(baseUrl)
+            .get('/internal/auth/users/email/b@ex.com')
+            .set('Authorization', `Bearer ${tok}`)
+            .expect(404);
+    });
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // Internal password verify (no hash leaves service)
+    // ────────────────────────────────────────────────────────────────────────────
+
+    it('POST /internal/auth/verify-password → 200 ok:true on correct creds', async () => {
+        const tok = await signSvcToken({ scope: 'user.verify:password' });
+        const res = await request(baseUrl)
+            .post('/internal/auth/verify-password')
+            .set('Authorization', `Bearer ${tok}`)
+            .send({ usernameOrEmail: 'alice', password: 's3cret' })
+            .expect(200);
+
+        expect(res.body.ok).toBe(true);
+        expect(res.body.user.username).toBe('alice');
+        expect(res.body.user).not.toHaveProperty('password_hash');
+    });
+
+    it('verify-password → 401 on wrong password or unknown user', async () => {
+        const tok = await signSvcToken({ scope: 'user.verify:password' });
+
+        await request(baseUrl)
+            .post('/internal/auth/verify-password')
+            .set('Authorization', `Bearer ${tok}`)
+            .send({ usernameOrEmail: 'alice', password: 'nope' })
+            .expect(401);
+
+        await request(baseUrl)
+            .post('/internal/auth/verify-password')
+            .set('Authorization', `Bearer ${tok}`)
+            .send({ usernameOrEmail: 'nobody', password: 'whatever' })
+            .expect(401);
+    });
+
+    it('verify-password → 400 on validation errors', async () => {
+        const tok = await signSvcToken({ scope: 'user.verify:password' });
+        await request(baseUrl)
+            .post('/internal/auth/verify-password')
+            .set('Authorization', `Bearer ${tok}`)
+            .send({ usernameOrEmail: 'a', password: 'x' }) // too short
+            .expect(400);
+    });
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // Writes: create / update / delete
+    // ────────────────────────────────────────────────────────────────────────────
+
+    it('POST /api/v1/users requires scope & azp and returns sanitized user', async () => {
+        // 401: missing token
+        await request(baseUrl)
+            .post('/api/v1/users')
+            .send({ username: 'bob', email: 'b@ex.com', password: 'hunter2' })
+            .expect(401);
+
+        // 403: wrong scope
+        const wrongScope = await signSvcToken({ scope: 'users:update' });
+        await request(baseUrl)
+            .post('/api/v1/users')
+            .set('Authorization', `Bearer ${wrongScope}`)
+            .send({ username: 'bob', email: 'b@ex.com', password: 'hunter2' })
+            .expect(403);
+
+        // 403: wrong azp
+        const wrongAzp = await signSvcToken({ scope: 'users:create', azp: 'frontend' });
+        await request(baseUrl)
+            .post('/api/v1/users')
+            .set('Authorization', `Bearer ${wrongAzp}`)
+            .send({ username: 'bob', email: 'b@ex.com', password: 'hunter2' })
+            .expect(403);
+
+        // 400: validation (neither password nor hash)
+        const okScope = await signSvcToken({ scope: 'users:create' });
+        await request(baseUrl)
+            .post('/api/v1/users')
+            .set('Authorization', `Bearer ${okScope}`)
+            .send({ username: 'bob', email: 'b@ex.com' })
+            .expect(400);
+
+        // 201: created (sanitized)
+        const res = await request(baseUrl)
+            .post('/api/v1/users')
+            .set('Authorization', `Bearer ${okScope}`)
+            .send({ username: 'bob', email: 'b@ex.com', password: 'hunter2' })
+            .expect(201);
+        expect(res.body.username).toBe('bob');
+        expect(res.body).not.toHaveProperty('password_hash');
+
+        // 409: conflict mapping
+        await request(baseUrl)
+            .post('/api/v1/users')
+            .set('Authorization', `Bearer ${okScope}`)
+            .send({ username: 'dupe', email: 'dupe@ex.com', password: 'x12345678' })
+            .expect(409);
+    });
+
+    it('PATCH /api/v1/users/:id requires scope & azp and returns sanitized user', async () => {
+        // 401: missing token
+        await request(baseUrl)
+            .patch('/api/v1/users/u1')
+            .send({ verified: true })
+            .expect(401);
+
+        // 403: wrong scope
+        const wrongScope = await signSvcToken({ scope: 'users:create' });
+        await request(baseUrl)
+            .patch('/api/v1/users/u1')
+            .set('Authorization', `Bearer ${wrongScope}`)
+            .send({ verified: true })
+            .expect(403);
+
+        // 403: wrong azp
+        const wrongAzp = await signSvcToken({ scope: 'users:update', azp: 'frontend' });
+        await request(baseUrl)
+            .patch('/api/v1/users/u1')
+            .set('Authorization', `Bearer ${wrongAzp}`)
+            .send({ verified: false })
+            .expect(403);
+
+        // 400: both password and password_hash provided
+        const okScope = await signSvcToken({ scope: 'users:update' });
+        await request(baseUrl)
+            .patch('/api/v1/users/u1')
+            .set('Authorization', `Bearer ${okScope}`)
+            .send({ password: 'newPasspass!', password_hash: 'abc'.repeat(10) })
+            .expect(400);
+
+        // 200: set verified true
+        const res1 = await request(baseUrl)
+            .patch('/api/v1/users/u1')
+            .set('Authorization', `Bearer ${okScope}`)
+            .send({ verified: true })
+            .expect(200);
+        expect(res1.body).toMatchObject({ id: 'u1', verified: true });
+        expect(res1.body).not.toHaveProperty('password_hash');
+
+        // 200: update roles and password via hash
+        const res2 = await request(baseUrl)
+            .patch('/api/v1/users/u1')
+            .set('Authorization', `Bearer ${okScope}`)
+            .send({ roles: ['admin'], password_hash: bcrypt.hashSync('newp@ss', 10) })
+            .expect(200);
+        expect(res2.body.roles).toContain('admin');
+
+        // 404: missing id
+        await request(baseUrl)
+            .patch('/api/v1/users/missing')
+            .set('Authorization', `Bearer ${okScope}`)
+            .send({ verified: true })
+            .expect(404);
+
+        // 409: conflict mapping
+        await request(baseUrl)
+            .patch('/api/v1/users/dupe')
+            .set('Authorization', `Bearer ${okScope}`)
+            .send({ verified: true })
+            .expect(409);
+    });
+
+    it('DELETE /api/v1/users/:id requires scope & azp and returns 204/404', async () => {
+        // 401: missing token
+        await request(baseUrl).delete('/api/v1/users/u1').expect(401);
+
+        // 403: wrong scope
+        const wrongScope = await signSvcToken({ scope: 'users:update' });
+        await request(baseUrl)
+            .delete('/api/v1/users/u1')
+            .set('Authorization', `Bearer ${wrongScope}`)
+            .expect(403);
+
+        // 403: wrong azp
+        const wrongAzp = await signSvcToken({ scope: 'users:delete', azp: 'frontend' });
+        await request(baseUrl)
+            .delete('/api/v1/users/u1')
+            .set('Authorization', `Bearer ${wrongAzp}`)
+            .expect(403);
+
+        // 204: ok
+        const ok = await signSvcToken({ scope: 'users:delete' });
+        await request(baseUrl)
+            .delete('/api/v1/users/u1')
+            .set('Authorization', `Bearer ${ok}`)
+            .expect(204);
+
+        // 404: already deleted
+        await request(baseUrl)
+            .delete('/api/v1/users/u1')
+            .set('Authorization', `Bearer ${ok}`)
+            .expect(404);
+    });
 });
