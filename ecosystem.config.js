@@ -44,6 +44,16 @@ module.exports = {
             env: {
                 ENV: 'production'
             }
+        },
+        {
+            name: 'Trading-Bot',
+            cwd: 'apps/Trading-Bot',
+            script: 'src/bot.py',
+            interpreter: '/srv/DSS/apps/Trading-Bot/.venv/bin/python',
+            env: {
+                ENV: 'production'
+            }
         }
+
     ]
 };
