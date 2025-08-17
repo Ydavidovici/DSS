@@ -19,7 +19,7 @@ each individual service.
 │   ├── ds-frontend/       # Static marketing site (Bun, TypeScript optional)
 │   ├── klvn-frontend/     # Kehilas Lev Vnefesh site (Express + templating)
 │   ├── pfm/               # Personal Finance Manager app (Node.js, Vue or React)
-│   └── Trading-bot/                  # Trading Bot designed to automatically make trades to earn money
+│   └── Trading-bot/       # Trading Bot designed to automatically make trades to earn money
 ├── .env.example           # Root‐level environment variable template
 ├── ecosystem.config.js    # PM2 process definitions for production or staging
 ├── README.md              # ← You are here
