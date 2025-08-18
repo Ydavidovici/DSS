@@ -1,0 +1,53 @@
+{
+    "stylePreferences": {
+        "indentation": "4 spaces",
+        "variableNaming": "camelCase",
+        "classNaming": "PascalCase",
+        "comments": {
+            "functionComments": "JSDoc",
+            "apiDocumentation": "JSDoc"
+        }
+    },
+    "prettierPreferences": {
+        "enforcement": "pre-commit",
+        "strictness": "strict"
+    },
+    "eslintPreferences": {
+        "enforcement": "on save",
+        "strictness": "moderate"
+    },
+    "gitPreferences": {
+        "branching": "new branch for new features",
+        "commitMessageFormat": "feature: [description] for new features, fix: [description] for bug fixes",
+        "autoCommit": true,
+        "autoPush": false
+    },
+    "performanceOptimization": {
+        "strategy": "situational",
+        "techniques": ["caching", "lazy loading", "loop optimization"]
+    },
+    "codeModularity": {
+        "approach": "small, single-purpose functions"
+    },
+    "testing": {
+        "unitTests": "important logic like CRUD functionality",
+        "integrationTests": "ensure the app works as expected"
+    },
+    "loggingAndMetrics": {
+        "type": "structured",
+        "library": "Winston",
+        "usageTracking": true,
+        "metrics": ["API usage", "code accuracy", "execution time"]
+    },
+    "interactiveFeatures": {
+        "progressIndicators": true,
+        "historyManagement": true,
+        "realTimeLogStreaming": true,
+        "fileSelection": true,
+        "customizableSettings": true,
+        "contextualHelp": true,
+        "errorHandling": true,
+        "realTimeNotifications": true,
+        "helpTooltips": true
+    }
+}
