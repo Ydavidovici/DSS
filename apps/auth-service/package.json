@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "bun run src/index.ts",
-    "test": "vitest run",
+    "test": "vitest run --reporter=verbose",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "key": "tsx src/utils/keyManagement.ts",
