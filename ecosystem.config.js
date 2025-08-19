@@ -30,7 +30,7 @@ module.exports = {
         {
             name: 'klvn-frontend',
             cwd: 'apps/klvn-frontend',
-            script: 'index.js',
+            script: 'src/server.ts',
             interpreter: 'bun',
             env: {
                 NODE_ENV: 'production'
