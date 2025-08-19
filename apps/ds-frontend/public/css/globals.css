@@ -744,8 +744,8 @@ body {
   padding: 20px 35px;
   border: none;
   border-radius: 14px;
-  background: var(--color-text);
-  color: var(--color-bg);
+    background: var(--color-accent);
+    color: var(--color-bg);
   font-family: var(--font-sans);
   font-size: var(--fs-base);
   cursor: pointer;
