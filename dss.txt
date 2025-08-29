@@ -1,8 +1,3 @@
-
-
-
-
-
 #TODO
 Auth Service -
  - Update test script(s)
