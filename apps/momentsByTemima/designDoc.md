@@ -158,13 +158,142 @@
 
 ---
 
-## H) Build Plan
+## H) Build Plan — DSS Microservices + FastAPI (backend) + Vue 3 (Vite) + Tailwind (frontend)
 
-* **Stack:** Next.js + Tailwind
+**Goal:** Keep the UI fast and simple in Vue; keep business logic in your DSS backend. The Temima services talk to your existing **dss-auth** (JWT) and **dss-db** (Postgres).
+
+### H.1 Services (who does what)
+
+* **dss-db** — PostgreSQL (shared).
+* **dss-auth** — existing JWT issuer/validator (HS256 or JWKS). Only required for **admin** endpoints.
+* **temima-api** — **FastAPI** service: portfolio listing/upload, contact messages, bookings, email notifications, static media.
+* **temima-web** — **Vue 3 + Vite + Tailwind** SPA (can add SSG later); consumes `temima-api` over HTTPS.
+
+### H.2 Frontend (temima-web)
+
 * **Routes:** `/`, `/portfolio`, `/services`, `/about`, `/contact`
-* **Images:** `/public/img` with responsive variants; next/image
-* **Form:** Simple serverless email handler to start (upgrade later)
-* **Links:** `tel:7477179328`, `sms:7477179328`
+* **UI:** Tailwind themed with tokens (Cormorant Garamond/Inter, soft pastels, light theme)
+* **Images:** Responsive grid + lightbox; `<img>` with `srcset/sizes` (or vite-plugin-image-presets). Preload LCP hero.
+* **Forms:** POST to API (`/api/contact`, `/api/bookings`).
+* **Primary actions:** `tel:7477179328`, `sms:7477179328` links visible on mobile.
+* **SEO:** Static meta + OpenGraph; optional SSG later (vite-ssg) if needed.
+* **Env:** `VITE_API_BASE`, `VITE_PHONE`, `VITE_EMAIL`.
+
+### H.3 Backend (temima-api — FastAPI)
+
+**Public endpoints**
+
+* `GET /api/health` → `{ status: "ok" }`
+* `GET /api/portfolio` → `{ images: Image[] }`
+* `POST /api/contact` → `{ name, email, message }` → store + email → `{ ok: true }`
+* `POST /api/bookings` → `{ name, email, message, preferredDateTime? }` → store + email → `{ ok: true }`
+
+**Admin endpoints** (require `Authorization: Bearer <jwt>` validated via **dss-auth**)
+
+* `POST /api/admin/images` (multipart) → upload to `MEDIA_ROOT` (or S3) → `{ id, url }`
+* `DELETE /api/admin/images/{id}` → `{ ok: true }`
+* `GET /api/admin/bookings` → list; `PATCH /api/admin/bookings/{id}` → update status (`new/contacted/scheduled/done/cancelled`)
+
+**Models (SQLAlchemy)**
+
+* `image(id, file_path, url, alt, category, featured, sort_order, created_at)`
+* `contact_message(id, name, email, message, created_at)`
+* `booking(id, name, email, message, preferred_datetime, status, created_at)`
+
+**Integrations**
+
+* **Email:** Resend or SMTP (Mailhog in dev). Helper in `services/email.py`.
+* **Media:** Local `MEDIA_ROOT=./media` served at `/media/*` (uvicorn static) → switch to S3/Cloudinary later.
+* **Auth:** `get_current_user()` hits dss-auth (HS256 secret or JWKS).
+* **CORS:** allow `http://localhost:5173` in dev and prod domain in production.
+
+### H.4 API Contracts (JSON)
+
+* **GET /api/portfolio** → `200 { images: [{ id, url, alt, width?, height?, category?, featured? }] }`
+* **POST /api/contact**
+
+```json
+{ "name": "Temima", "email": "temima@example.com", "message": "Hello!" }
+```
+
+`201 { "ok": true }`
+
+* **POST /api/bookings**
+
+```json
+{ "name": "Temima", "email": "temima@example.com", "message": "Family shoot", "preferredDateTime": "2025-09-22T15:00:00Z" }
+```
+
+`201 { "ok": true }`
+
+### H.5 Local Dev (docker-compose optional)
+
+```yaml
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: temima
+      POSTGRES_USER: temima
+      POSTGRES_PASSWORD: temima
+    ports: ["5432:5432"]
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://temima:temima@db:5432/temima
+      MEDIA_ROOT: /app/media
+      MEDIA_BASE_URL: http://localhost:8000/media
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      EMAIL_TO: temimaedgar@gmail.com
+      EMAIL_FROM: no-reply@temima.local
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET}
+      CORS_ORIGINS: http://localhost:5173
+    volumes: ["./backend:/app"]
+    ports: ["8000:8000"]
+    depends_on: [db]
+  web:
+    build: ./frontend
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000/api
+      VITE_PHONE: 7477179328
+      VITE_EMAIL: temimaedgar@gmail.com
+    volumes: ["./frontend:/app"]
+    ports: ["5173:5173"]
+    depends_on: [api]
+  mailhog:
+    image: mailhog/mailhog
+    ports: ["1025:1025", "8025:8025"]
+```
+
+### H.6 Env samples
+
+**backend/.env.example**
+
+```
+PORT=8000
+DATABASE_URL=postgresql+psycopg://user:pass@localhost:5432/temima
+RESEND_API_KEY=...
+EMAIL_TO=temimaedgar@gmail.com
+EMAIL_FROM=no-reply@yourdomain.com
+AUTH_JWT_SECRET=supersecret # or AUTH_JWKS_URL=https://auth/.well-known/jwks.json
+MEDIA_BASE_URL=http://localhost:8000/media
+MEDIA_ROOT=./media
+CORS_ORIGINS=http://localhost:5173
+```
+
+**frontend/.env.example**
+
+```
+VITE_API_BASE_URL=http://localhost:8000/api
+VITE_PHONE=7477179328
+VITE_EMAIL=temimaedgar@gmail.com
+```
+
+### H.7 Deployment
+
+* **API:** Containerize and deploy to VPS/Render/Fly.io; mount persistent `media/`; set env vars; restrict CORS to prod web origin.
+* **Web:** Deploy Vite build to Netlify/Vercel or an Nginx static site; `VITE_API_BASE_URL` → `https://api.temimaphoto.com/api`.
+* **Domains:** `www.temimaphoto.com` (web) and `api.temimaphoto.com` (API). Enforce HTTPS.
 
 ---
 
