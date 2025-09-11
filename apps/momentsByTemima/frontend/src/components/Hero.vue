@@ -1,9 +1,6 @@
 <template>
-  <section class="relative pt-20 sm:pt-28 overflow-hidden" aria-labelledby="heroTitle">
-    <!-- Soft gradient background -->
+  <section class="relative pt-20 sm:pt-28 overflow-hidden" aria-labelledby="heroTitle" ref="sectionEl">
     <div class="absolute inset-0 -z-10 bg-gradient-to-br from-blush-100 via-sky-200 to-sage-200"></div>
-
-    <!-- Decorative blurred blobs -->
     <div class="pointer-events-none absolute -top-24 -right-16 w-[360px] h-[360px] rounded-full bg-blush-300/60 blur-3xl" />
     <div class="pointer-events-none absolute -bottom-24 -left-16 w-[340px] h-[340px] rounded-full bg-sage-300/60 blur-3xl" />
 
@@ -23,7 +20,7 @@
         <div class="aspect-[4/3] rounded-lg overflow-hidden ring-1 ring-warmgray-200 shadow-card">
           <img :src="heroUrl" alt="Natural‑light portrait" class="w-full h-full object-cover transition-transform duration-200 hover:scale-[1.02]" />
         </div>
-        <!-- optional: small floating thumb for visual rhythm -->
+
         <div class="hidden md:block absolute -right-6 -bottom-8 w-32 aspect-square rounded-lg overflow-hidden ring-1 ring-warmgray-200 shadow-card">
           <img :src="thumbUrl" alt="Detail shot" class="w-full h-full object-cover" />
         </div>
@@ -33,7 +30,32 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted, ref, nextTick } from 'vue'
+import { assetUrl, bestAssetUrl } from '@/lib/api'
+
 const phone = import.meta.env.VITE_PHONE || '7477179328'
-const heroUrl = "/placeholder-hero.jpg"
-const thumbUrl = "/placeholder-thumb.jpg"
+
+// the relative path inside backend media dir
+const heroRel = 'grass.png'
+
+// state
+const heroUrl = ref(assetUrl(heroRel))   // optimistic fallback: original
+const thumbUrl = ref(assetUrl(heroRel))  // will switch to a small derivative
+const sectionEl = ref<HTMLElement | null>(null)
+
+async function pickImages() {
+  await nextTick()
+  const container = sectionEl.value?.querySelector('.aspect-[4/3]') as HTMLElement | null
+  const maxW = Math.min( // sensible guess for hero width
+      1600,
+      container?.clientWidth || 1280,
+      window.innerWidth
+  )
+
+  // prefer AVIF; backend falls back if none
+  heroUrl.value = await bestAssetUrl(heroRel, maxW, 'avif')
+  thumbUrl.value = await bestAssetUrl(heroRel, 480, 'avif')
+}
+
+onMounted(pickImages)
 </script>
