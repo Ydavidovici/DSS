@@ -34,6 +34,6 @@
 
 <script setup lang="ts">
 const phone = import.meta.env.VITE_PHONE || '7477179328'
-const heroUrl = "/placeholder-hero.jpg"   // replace with client asset
-const thumbUrl = "/placeholder-thumb.jpg" // optional
+const heroUrl = "/placeholder-hero.jpg"
+const thumbUrl = "/placeholder-thumb.jpg"
 </script>
