@@ -8,12 +8,14 @@
 </template>
 
 <script setup lang="ts">
+import { assetUrl } from '@/lib/api'
+
 const images = [
-  { src: '/img/feat-1.jpg', alt: 'Featured 1' },
-  { src: '/img/feat-2.jpg', alt: 'Featured 2' },
-  { src: '/img/feat-3.jpg', alt: 'Featured 3' },
-  { src: '/img/feat-4.jpg', alt: 'Featured 4' },
-  { src: '/img/feat-5.jpg', alt: 'Featured 5' },
-  { src: '/img/feat-6.jpg', alt: 'Featured 6' },
+  { src: assetUrl('Oelbaum-020 (1).jpg'), alt: 'Featured 1' },
+  { src: assetUrl('SHLOMO.png'), alt: 'Featured 2' },
+  { src: assetUrl('Shlomo-001.jpg'), alt: 'Featured 3' },
+  { src: assetUrl('Shlomo-001-3.jpg'), alt: 'Featured 4' },
+  { src: assetUrl('Shlomo-001-4.jpg'), alt: 'Featured 5' },
+  { src: assetUrl('shlomo-002.jpg'), alt: 'Featured 6' },
 ]
 </script>

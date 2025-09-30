@@ -1,61 +1,34 @@
 <template>
-  <section class="relative pt-20 sm:pt-28 overflow-hidden" aria-labelledby="heroTitle" ref="sectionEl">
-    <div class="absolute inset-0 -z-10 bg-gradient-to-br from-blush-100 via-sky-200 to-sage-200"></div>
-    <div class="pointer-events-none absolute -top-24 -right-16 w-[360px] h-[360px] rounded-full bg-blush-300/60 blur-3xl" />
-    <div class="pointer-events-none absolute -bottom-24 -left-16 w-[340px] h-[340px] rounded-full bg-sage-300/60 blur-3xl" />
+  <section
+      class="relative overflow-hidden h-[80vh] sm:h-screen flex items-center"
+      aria-labelledby="heroTitle"
+  >
+    <img
+        :src="heroUrl"
+        alt="Natural‑light portrait"
+        class="absolute inset-0 w-full h-full object-cover z-0 transition-transform duration-200"
+    />
 
-    <div class="mx-auto max-w-6xl px-4 grid md:grid-cols-2 gap-10 items-center">
+    <div class="relative z-20 mx-auto max-w-6xl px-4 grid md:grid-cols-2 gap-10 items-center">
       <div>
-        <h1 id="heroTitle" class="font-heading text-4xl sm:text-5xl mb-4">
-          Soft, natural-light photography—<span class="bg-gradient-to-r from-blush-400 to-sky-400 bg-clip-text text-transparent">warm, real, you.</span>
+        <h1 id="heroTitle" class="font-heading text-4xl sm:text-5xl mb-4 text-rose-300 drop-shadow-md">
+          Soft, natural-light photography—<span class="bg-gradient-to-r from-blush-400 to-sky-400 bg-clip-text text-rose-200">warm, real, you.</span>
         </h1>
-        <p class="text-warmgray-600 mb-6">Outdoor and on-location sessions, Sun–Fri. Call or text to book.</p>
+        <p class="text-black mb-6 drop-shadow">Outdoor and on-location sessions, Sun–Fri. Call or text to book.</p>
         <div class="flex gap-3">
-          <a :href="`tel:${phone}`" class="px-5 py-3 rounded-md bg-blush-400/80 hover:bg-blush-400 shadow-card transition">Call</a>
-          <a :href="`sms:${phone}`" class="px-5 py-3 rounded-md border border-warmgray-200 hover:bg-sky-200 transition">Text</a>
-        </div>
-      </div>
-
-      <div class="relative">
-        <div class="aspect-[4/3] rounded-lg overflow-hidden ring-1 ring-warmgray-200 shadow-card">
-          <img :src="heroUrl" alt="Natural‑light portrait" class="w-full h-full object-cover transition-transform duration-200 hover:scale-[1.02]" />
-        </div>
-
-        <div class="hidden md:block absolute -right-6 -bottom-8 w-32 aspect-square rounded-lg overflow-hidden ring-1 ring-warmgray-200 shadow-card">
-          <img :src="thumbUrl" alt="Detail shot" class="w-full h-full object-cover" />
+          <a :href="`tel:${phone}`" class="px-5 py-3 rounded-md bg-blush-400/80 hover:bg-blush-400 shadow-card transition text-white">Call</a>
+          <a :href="`sms:${phone}`" class="px-5 py-3 rounded-md border border-white/40 hover:bg-white/10 transition text-white">Text</a>
         </div>
       </div>
     </div>
-  </section>
-</template>
+  </section></template>
 
 <script setup lang="ts">
-import { onMounted, ref, nextTick } from 'vue'
-import { assetUrl, bestAssetUrl } from '@/lib/api'
+import { ref } from 'vue'
+import { assetUrl } from '@/lib/api'
 
 const phone = import.meta.env.VITE_PHONE || '7477179328'
+const heroRel = 'SHLOMO.png'
 
-// the relative path inside backend media dir
-const heroRel = 'grass.png'
-
-// state
-const heroUrl = ref(assetUrl(heroRel))   // optimistic fallback: original
-const thumbUrl = ref(assetUrl(heroRel))  // will switch to a small derivative
-const sectionEl = ref<HTMLElement | null>(null)
-
-async function pickImages() {
-  await nextTick()
-  const container = sectionEl.value?.querySelector('.aspect-[4/3]') as HTMLElement | null
-  const maxW = Math.min( // sensible guess for hero width
-      1600,
-      container?.clientWidth || 1280,
-      window.innerWidth
-  )
-
-  // prefer AVIF; backend falls back if none
-  heroUrl.value = await bestAssetUrl(heroRel, maxW, 'avif')
-  thumbUrl.value = await bestAssetUrl(heroRel, 480, 'avif')
-}
-
-onMounted(pickImages)
+const heroUrl = ref(assetUrl(heroRel))
 </script>

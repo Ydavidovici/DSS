@@ -6,10 +6,19 @@
       <Hero />
     </div>
 
+    <section class="mt-20 mx-auto max-w-3xl px-4 text-center">
+      <h2 class="font-heading text-3xl sm:text-4xl mb-4 text-pink-700">
+        About Moments by Temima
+      </h2>
+      <p class="text-gray-800 text-lg leading-relaxed">
+        At Moments by Temima, we specialize in capturing natural-light portraits that highlight your authentic self. Whether you're celebrating a milestone or simply want to preserve a beautiful moment, our goal is to create timeless images that feel real, warm, and uniquely you.
+      </p>
+    </section>
+
+
     <section class="mt-16 mx-auto max-w-6xl px-4">
       <div class="mb-6">
         <h2 class="font-heading text-3xl">Recent Work</h2>
-        <!-- subtle accent bar -->
         <div class="mt-2 h-1 w-24 rounded-full bg-gradient-to-r from-blush-300 via-sky-300 to-sage-300"></div>
       </div>
       <ImageGrid />
