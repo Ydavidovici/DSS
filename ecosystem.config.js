@@ -53,7 +53,24 @@ module.exports = {
             env: {
                 ENV: 'production'
             }
-        }
-
+        },
+        {
+            name: 'momentsByTemima-backend',
+            cwd: 'apps/momentByTemima/backend',
+            script: 'uvicorn app.main:app --reload',
+            interpreter: 'bun',
+            env: {
+                NODE_ENV: 'production'
+            }
+        },
+        {
+            name: 'momentsByTemima-frontend',
+            cwd: 'apps/momentByTemima/frontend',
+            script: 'bun run start',
+            interpreter: 'bun',
+            env: {
+                NODE_ENV: 'production'
+            }
+        },
     ]
 };
