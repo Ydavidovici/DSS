@@ -56,10 +56,12 @@ module.exports = {
         },
         {
             name: 'momentsByTemima-backend',
-            cwd: 'apps/momentByTemima/backend',
-            script: 'uvicorn app.main:app --reload',
-            interpreter: 'bun',
+            cwd: 'apps/momentsByTemima/backend',
+            script: 'bash',
+            args: ['-lc', 'source .venv/bin/activate && exec uvicorn app.main:app --host 0.0.0.0 --port 8000'],
+            interpreter: 'none',
             env: {
+                PYTHONPATH: '.',
                 NODE_ENV: 'production'
             }
         },
