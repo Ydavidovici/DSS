@@ -55,12 +55,11 @@ module.exports = {
             }
         },
         {
-            name: 'momentsByTemima-backend',
+            name: "momentsByTemima-backend",
             cwd: "/root/srv/dss/apps/momentsByTemima/backend",
-            interpreter: "/root/srv/dss/apps/momentsByTemima/backend/.venv/bin/python",
-            interpreter_args: "-m uvicorn",
-            script: "app.main:app",
-            args: "--host 0.0.0.0 --port 8000",
+            interpreter: "none",
+            script: "/root/srv/dss/apps/momentsByTemima/backend/.venv/bin/uvicorn",
+            args: "app.main:app --host 0.0.0.0 --port 8000",
             env: { PYTHONUNBUFFERED: "1" }
         },
         {
