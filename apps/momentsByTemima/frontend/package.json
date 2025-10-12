@@ -7,6 +7,7 @@
     "dev": "vite",
     "start": "vite",
     "build": "vite build",
+    "postbuild": "rsync -av --delete dist/ /srv/dss/apps/momentsByTemima/frontend/dist/",
     "preview": "vite preview"
   },
   "dependencies": {
