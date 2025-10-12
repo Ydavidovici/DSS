@@ -65,7 +65,7 @@ module.exports = {
         },
         {
             name: 'momentsByTemima-frontend',
-            cwd: 'apps/momentByTemima/frontend',
+            cwd: 'apps/momentsByTemima/frontend',
             script: 'bun run start',
             interpreter: 'bun',
             env: {
