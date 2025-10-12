@@ -15,8 +15,6 @@
         <a :href="`sms:${phone}`" class="px-3 py-2 rounded-md border border-warmgray-200 hover:bg-sky-200 transition">Text</a>
       </div>
     </nav>
-    <!-- thin pastel underline to add color without heaviness -->
-    <div class="h-[3px] bg-gradient-to-r from-blush-200 via-sky-200 to-sage-200"></div>
   </header>
 </template>
 
