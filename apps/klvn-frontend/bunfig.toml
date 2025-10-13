@@ -1,3 +1,0 @@
-# bunfig.toml
-name = "klvn-frontend"
-entry = "src/server.ts"
