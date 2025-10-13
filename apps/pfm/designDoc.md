@@ -43,9 +43,7 @@
 apps/
   auth/
   ds-frontend/
-  klvn-frontend/
   pfm-service/
-    Dockerfile
     requirements.txt
     src/
       main.py            # FastAPI app entrypoint
@@ -85,26 +83,35 @@ apps/
 
 ## 5. System Architecture
 
-* **Monorepo Integration**: Add a new FastAPI service under `apps/pfm-service` in your existing `ds.klvn` repo. Leverage shared utilities and config (`shared/config/db.ts` can be replaced or complemented with Python `shared/db.py`). Update `docker-compose.yml` and `nginx/default.conf` to expose the new service (e.g. `pfm-service:8000` at `/pfm/`).
+* **Monorepo Integration**: Add a new FastAPI 
+service under `apps/pfm` in your existing `dss` 
+repo. Leverage shared utilities and config 
+(`shared/config/db.ts` can be replaced or complemented 
+with Python `shared/db.py`).`nginx/default.conf` 
+to expose the new service (e.g. `pfm-service:8000` at 
+`/pfm/`).
 
-* **Frontend**: Server-rendered templates (FastAPI’s Jinja2 templating) with Tailwind CSS and HTMX for interactivity, delivered by the `pfm-service` container—no separate JS-first frontend app required.
+* **Frontend**: Server-rendered templates (FastAPI’s 
+Jinja2 templating) with Tailwind CSS and HTMX for 
+interactivity, delivered by the `pfm` container—no 
+separate JS-first frontend app required.
 
-* **Backend**: Python (FastAPI) service in `apps/pfm-service` (Dockerfile, requirements.txt).
+* **Backend**: Python (FastAPI) service in `apps/pfm` 
+(requirements.txt).
 
-* **Database**: PostgreSQL shared via the existing `docker-compose.yml` (reuse or provision a new volume `pfm_db`).
-
-* **Storage**: local disk or attached volume defined in `docker-compose.yml` for uploaded statements.
+* **Database**: PostgreSQL shared via the existing database
+service.
 
 ---
 
 ## 6. Technology Stack Decision
 
 | Layer    | Options                                    | Recommendation                                                     |
-| -------- | ------------------------------------------ | ------------------------------------------------------------------ |
+| -------- |--------------------------------------------| ------------------------------------------------------------------ |
 | Frontend | Server-rendered (Jinja2/Templating) + HTMX | Tailwind CSS with minimal JavaScript and HTMX-driven interactivity |
 | Backend  | FastAPI                                    | FastAPI (Python)                                                   |
-| Database | PostgreSQL, MySQL, SQLite                  | PostgreSQL (SQLite for MVP)                                        |
-| Auth     | JWT, OAuth2                                | JWT with optional OAuth2 later                                     |
+| Database | SQL (database service)                     | PostgreSQL (SQLite for MVP)                                        |
+| Auth     | JWT, OAuth2 (auth service)                 | JWT with optional OAuth2 later                                     |
 
 **Rationale:** FastAPI pairs well with Python trading bot, offers automatic docs and high performance.
 
@@ -135,28 +142,3 @@ apps/
 * **Webhooks**: Optional notifications to trading bot when new data arrives.
 
 ---
-
-## 10. Security & Compliance
-
-* Encrypt sensitive data at rest.
-* Validate & sanitize file uploads.
-* Follow OWASP guidelines.
-
----
-
-## 11. Roadmap & Milestones
-
-1. **Week 1**: Setup repo, choose stack, scaffold frontend & backend.
-2. **Week 2**: Implement CSV upload & parsing; basic transaction model.
-3. **Week 3**: Build transaction review UI + categorization.
-4. **Week 4**: Budget CRUD + dashboard visualization.
-5. **Week 5**: API endpoints and trading bot integration demo.
-
----
-
-## 12. Testing & Deployment Strategy
-
-* **Testing**: Unit tests for parsing logic, API tests with pytest.
-* Deployment on minipc for now, server later
-* **Monitoring**: Sentry for error tracking.
-
