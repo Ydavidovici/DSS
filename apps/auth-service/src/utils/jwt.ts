@@ -1,16 +1,7 @@
-// src/utils/jwt.ts  (or whichever file the app really imports)
 import fs from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
-import {
-    SignJWT,
-    jwtVerify,
-    importPKCS8,
-    importSPKI,
-    exportJWK,
-    JWTPayload,
-    JWSHeaderParameters,
-} from "jose";
+import {SignJWT, jwtVerify, importPKCS8, importSPKI, exportJWK, JWTPayload, JWTHeaderParameters} from "jose";
 
 type TokenKind = "access" | "refresh";
 
@@ -20,8 +11,8 @@ export interface JwtConfig {
     accessTtlSec: number;
     refreshTtlSec: number;
     clockToleranceSec: number;
-    jwksPath: string;   // baseline default
-    activeKid: string;  // baseline default
+    jwksPath: string;
+    activeKid: string;
 }
 
 const cfg: JwtConfig = {
@@ -30,8 +21,6 @@ const cfg: JwtConfig = {
     accessTtlSec: Number(process.env.ACCESS_TTL_SEC ?? 900),
     refreshTtlSec: Number(process.env.REFRESH_TTL_SEC ?? 1209600),
     clockToleranceSec: Number(process.env.JWT_CLOCK_TOLERANCE_SEC ?? 5),
-
-    // sensible defaults for repo layout
     jwksPath: process.env.JWKS_PATH ?? path.resolve(process.cwd(), "src/keys"),
     activeKid: process.env.CURRENT_KID ?? "auth-key-1",
 };
@@ -43,7 +32,6 @@ const keyMap = new Map<string, {
     publicJwk?: any;
 }>();
 
-// helpers read env at runtime
 const envKid = () => process.env.CURRENT_KID ?? cfg.activeKid;
 const envJwksPath = () => process.env.JWKS_PATH ?? cfg.jwksPath;
 
@@ -115,9 +103,9 @@ async function sign(
     assert(loaded.privateKey, `No private key for active kid=${kid}`);
 
     const base = new SignJWT({ ...claims, typ: kind })
-      .setProtectedHeader({ alg: "RS256", kid } as JWSHeaderParameters)
+      .setProtectedHeader({ alg: "RS256", kid } as JWTHeaderParameters)
       .setIssuer(cfg.issuer)
-      .setAudience(opts.audience ?? cfg.audience)   // <-- override-able audience
+      .setAudience(opts.audience ?? cfg.audience)
       .setSubject(claims.sub)
       .setIssuedAt();
 

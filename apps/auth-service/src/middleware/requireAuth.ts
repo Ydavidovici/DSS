@@ -1,62 +1,62 @@
-// src/middleware/requireAuth.ts
-import { Request, Response, NextFunction } from "express";
-import { verifyToken } from "../utils/jwt";
-import { isRevoked } from "../utils/tokenBlacklist";
+import {Request, Response, NextFunction} from "express";
+import {verifyToken} from "../utils/jwt";
 
 export interface AuthRequest extends Request {
-  user?: any;
+    user?: {
+        sub: string;
+        roles: string[];
+        preferred_username?: string;
+        email?: string;
+        [key: string]: any;
+    };
 }
 
-type RequireAuthOptions = {
-  roles?: string[];          // require these roles (all by default)
-  anyRole?: boolean;         // if true, any one role is enough
-  checkRevocation?: boolean; // only meaningful if ATs carry a jti
-};
+export function requireAuth(expectedRole?: string) {
+    return async (req: AuthRequest, res: Response, next: NextFunction) => {
+        try {
+            let token = "";
+            const authHeader = req.headers.authorization;
 
-export function requireAuth(opts: RequireAuthOptions = {}) {
-  return async (req: AuthRequest, res: Response, next: NextFunction) => {
-    const header = req.headers.authorization;
-    if (!header?.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "Missing or malformed token." });
-    }
+            if (authHeader?.startsWith("Bearer ")) {
+                token = authHeader.split(" ")[1] ?? '';
+            }
 
-    const token = header.slice(7);
-    try {
-      const payload: any = await verifyToken(token);
+            if (!token && req.cookies && req.cookies.access_token) {
+                token = req.cookies.access_token;
+            }
 
-      // Optional: reject revoked tokens (only if your access tokens include a jti)
-      if (opts.checkRevocation && payload.jti && await isRevoked(payload.jti)) {
-        return res.status(401).json({ message: "Token revoked." });
-      }
+            if (!token) {
+                return res.status(401).json({message: "Authentication required"});
+            }
 
-      // Optional: role enforcement
-      if (opts.roles?.length) {
-        const userRoles: string[] = Array.isArray(payload.roles) ? payload.roles : [];
-        const ok = opts.anyRole
-            ? opts.roles.some(r => userRoles.includes(r))
-            : opts.roles.every(r => userRoles.includes(r));
-        if (!ok) return res.status(403).json({ message: "Forbidden" });
-      }
+            const {payload} = await verifyToken(token, "access");
 
-      // attach for downstream handlers
-      req.user = payload;
-      return next();
-    } catch {
-      return res.status(401).json({ message: "Invalid or expired token." });
-    }
-  };
-}
+            req.user = {
+                sub: String(payload.sub),
+                roles: (payload.roles as string[]) || [],
+                preferred_username: payload.preferred_username as string,
+                email: payload.email as string,
+                ...payload,
+            };
 
-/** Optional: attach user if present, otherwise continue unauthenticated (no 401). */
-export function optionalAuth() {
-  return async (req: AuthRequest, _res: Response, next: NextFunction) => {
-    const header = req.headers.authorization;
-    if (!header?.startsWith("Bearer ")) return next();
-    try {
-      req.user = await verifyToken(header.slice(7));
-    } catch {
-      // ignore invalid token, proceed as anonymous
-    }
-    next();
-  };
+            if (expectedRole && !req.user.roles.includes(expectedRole)) {
+                return res.status(403).json({message: "Insufficient permissions"});
+            }
+
+            res.setHeader("X-User-Id", req.user.sub);
+            if (req.user.email) {
+                res.setHeader("X-User-Email", req.user.email);
+            }
+            if (req.user.roles) {
+                res.setHeader("X-User-Roles", req.user.roles.join(","));
+            }
+            if (req.user.preferred_username) {
+                res.setHeader("X-User-Name", req.user.preferred_username);
+            }
+
+            next();
+        } catch (err) {
+            return res.status(401).json({message: 'Invalid or expired token'});
+        }
+    };
 }

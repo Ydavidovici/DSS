@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
+import rateLimit from "express-rate-limit";
 
 dotenv.config();
 
@@ -14,11 +15,9 @@ export const mailer = nodemailer.createTransport({
 });
 
 
-// src/middleware/rateLimit.ts
-import rateLimit from "express-rate-limit";
 
 export const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
+    windowMs: 15 * 60 * 1000,
     max: 10,
     message: { message: "Too many login attempts. Please try again later." }
 });
