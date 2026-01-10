@@ -1,0 +1,10 @@
+[install]
+# Configure optional Bun package manager settings
+auto = "auto"
+
+[install.scopes]
+# Configure scoped registries if needed
+
+[run]
+# Bun runtime configuration
+bun = "latest"
