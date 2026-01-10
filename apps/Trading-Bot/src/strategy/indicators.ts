@@ -23,10 +23,17 @@ export function calculateSMA(values: number[], period: number): number[] {
 
   const sma: number[] = [];
 
-  for (let i = period - 1; i < values.length; i++) {
-    const sum = values.slice(i - period + 1, i + 1).reduce((acc, val) => acc + val, 0);
-    const average = sum / period;
-    sma.push(average);
+  // Calculate first SMA
+  let sum = 0;
+  for (let i = 0; i < period; i++) {
+    sum += values[i];
+  }
+  sma.push(sum / period);
+
+  // Use sliding window for subsequent values
+  for (let i = period; i < values.length; i++) {
+    sum = sum - values[i - period] + values[i];
+    sma.push(sum / period);
   }
 
   return sma;
@@ -36,7 +43,7 @@ export function calculateSMA(values: number[], period: number): number[] {
  * Calculate Exponential Moving Average (EMA)
  * @param values Array of values (typically closing prices)
  * @param period Number of periods for EMA
- * @returns Array of EMA values (same length as input, first value is SMA)
+ * @returns Array of EMA values (length = values.length - period + 1)
  */
 export function calculateEMA(values: number[], period: number): number[] {
   if (values.length < period) {
@@ -119,6 +126,15 @@ export function detectCrossover(
     return null;
   }
 
+  // Validate arrays are aligned
+  if (fastMA.length !== slowMA.length) {
+    logger.warn('MA arrays have different lengths', {
+      fastMALength: fastMA.length,
+      slowMALength: slowMA.length,
+    });
+    return null;
+  }
+
   // Get current and previous values
   const currentFast = fastMA[fastMA.length - 1];
   const previousFast = fastMA[fastMA.length - 2];
@@ -154,36 +170,41 @@ export function detectCrossover(
 
 /**
  * Calculate Relative Strength Index (RSI)
- * Placeholder for future implementation
  * @param values Price values
  * @param period RSI period (typically 14)
+ * @returns Array of RSI values (0-100)
+ * @todo Implement RSI calculation for future strategies
  */
 export function calculateRSI(values: number[], period: number = 14): number[] {
-  // TODO: Implement RSI calculation for future strategies
   logger.warn('RSI calculation not yet implemented');
   return [];
 }
 
 /**
  * Calculate Bollinger Bands
- * Placeholder for future implementation
  * @param values Price values
  * @param period Period for bands
  * @param standardDeviations Number of standard deviations
+ * @returns Object with upper, middle, and lower band arrays
+ * @todo Implement Bollinger Bands for future strategies
  */
 export function calculateBollingerBands(
   values: number[],
   period: number = 20,
   standardDeviations: number = 2
 ): { upper: number[]; middle: number[]; lower: number[] } {
-  // TODO: Implement Bollinger Bands for future strategies
   logger.warn('Bollinger Bands calculation not yet implemented');
   return { upper: [], middle: [], lower: [] };
 }
 
 /**
  * Calculate MACD (Moving Average Convergence Divergence)
- * Placeholder for future implementation
+ * @param values Price values
+ * @param fastPeriod Fast EMA period (typically 12)
+ * @param slowPeriod Slow EMA period (typically 26)
+ * @param signalPeriod Signal line period (typically 9)
+ * @returns Object with macd, signal, and histogram arrays
+ * @todo Implement MACD for future strategies
  */
 export function calculateMACD(
   values: number[],
@@ -191,7 +212,6 @@ export function calculateMACD(
   slowPeriod: number = 26,
   signalPeriod: number = 9
 ): { macd: number[]; signal: number[]; histogram: number[] } {
-  // TODO: Implement MACD for future strategies
   logger.warn('MACD calculation not yet implemented');
   return { macd: [], signal: [], histogram: [] };
 }

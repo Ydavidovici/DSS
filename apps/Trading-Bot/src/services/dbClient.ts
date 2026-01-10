@@ -59,7 +59,7 @@ export class DbClient {
       logger.error(`DB Service request error: ${endpoint}`, {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw error;
+      return null;
     }
   }
 
@@ -81,8 +81,12 @@ export class DbClient {
       this.request<GetCandlesResponse>(`/candles?${queryParams.toString()}`)
     );
 
-    if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to fetch candles');
+    if (!response || !response.success || !response.data) {
+      logger.error('Failed to fetch candles from DB', {
+        symbol: params.symbol,
+        error: response?.error || 'No response',
+      });
+      return [];
     }
 
     logger.debug(`Fetched ${response.data.length} candles for ${params.symbol}`, {
@@ -108,8 +112,12 @@ export class DbClient {
       })
     );
 
-    if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to save candles');
+    if (!response || !response.success || !response.data) {
+      logger.error('Failed to save candles to DB', {
+        candleCount: candles.length,
+        error: response?.error || 'No response',
+      });
+      return 0;
     }
 
     logger.debug(`Saved ${response.data.inserted} candles to database`, {
@@ -124,7 +132,7 @@ export class DbClient {
    * @param trade Trade record to log
    * @returns Trade ID
    */
-  async logTrade(trade: Trade): Promise<string> {
+  async logTrade(trade: Trade): Promise<string | null> {
     const request: PostTradeRequest = { trade };
 
     const response = await retry(() =>
@@ -134,8 +142,13 @@ export class DbClient {
       })
     );
 
-    if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to log trade');
+    if (!response || !response.success || !response.data) {
+      logger.error('Failed to log trade to DB', {
+        symbol: trade.symbol,
+        side: trade.side,
+        error: response?.error || 'No response',
+      });
+      return null;
     }
 
     logger.debug(`Logged trade to database`, {
@@ -152,7 +165,7 @@ export class DbClient {
    * @param signal Signal to log
    * @returns Signal ID
    */
-  async logSignal(signal: SignalLog): Promise<string> {
+  async logSignal(signal: SignalLog): Promise<string | null> {
     const request: PostSignalRequest = { signal };
 
     const response = await retry(() =>
@@ -162,8 +175,13 @@ export class DbClient {
       })
     );
 
-    if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to log signal');
+    if (!response || !response.success || !response.data) {
+      logger.error('Failed to log signal to DB', {
+        symbol: signal.symbol,
+        type: signal.type,
+        error: response?.error || 'No response',
+      });
+      return null;
     }
 
     logger.debug(`Logged signal to database`, {
@@ -180,13 +198,17 @@ export class DbClient {
    * @param accountId Account identifier
    * @returns Portfolio summary
    */
-  async getPortfolio(accountId: string): Promise<Portfolio> {
+  async getPortfolio(accountId: string): Promise<Portfolio | null> {
     const response = await retry(() =>
       this.request<GetPortfolioResponse>(`/portfolio/${accountId}`)
     );
 
-    if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to fetch portfolio');
+    if (!response || !response.success || !response.data) {
+      logger.error('Failed to fetch portfolio from DB', {
+        accountId,
+        error: response?.error || 'No response',
+      });
+      return null;
     }
 
     logger.debug(`Fetched portfolio for account ${accountId}`, {
@@ -206,24 +228,30 @@ export class DbClient {
       // Assuming DB service has a /health endpoint
       const response = await fetch(`${this.baseUrl}/health`);
       return response.ok;
-    } catch {
+    } catch (error) {
+      logger.error('DB health check failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
       return false;
     }
   }
 }
 
-// Export singleton instance
-let dbClientInstance: DbClient | null = null;
+// Export singleton instances per DB service URL (for multi-account support)
+const dbClientInstances = new Map<string, DbClient>();
 
-export function getDbClient(): DbClient {
-  if (!dbClientInstance) {
-    const dbServiceUrl = process.env.DB_SERVICE_URL;
-    if (!dbServiceUrl) {
-      throw new Error('DB_SERVICE_URL environment variable is required');
-    }
-    dbClientInstance = new DbClient(dbServiceUrl);
+export function getDbClient(serviceUrl?: string): DbClient {
+  const url = serviceUrl || process.env.DB_SERVICE_URL;
+
+  if (!url) {
+    throw new Error('DB_SERVICE_URL environment variable is required');
   }
-  return dbClientInstance;
+
+  if (!dbClientInstances.has(url)) {
+    dbClientInstances.set(url, new DbClient(url));
+  }
+
+  return dbClientInstances.get(url)!;
 }
 
 export default getDbClient;

@@ -25,6 +25,10 @@ async function runTradingLoop(): Promise<void> {
   logger.info('='.repeat(60));
 
   try {
+    // Destructure config once to avoid duplication
+    const { symbols, timeframe, fastMAPeriod, slowMAPeriod, useEMA, minSignalStrength } = config.strategy;
+    const { positionSizePercent, maxPositions, dryRun } = config.trading;
+
     // 1. Check market status
     const broker = getBroker();
     const marketOpen = await broker.isMarketOpen();
@@ -32,27 +36,19 @@ async function runTradingLoop(): Promise<void> {
     logger.info(`Market status: ${marketOpen ? 'OPEN' : 'CLOSED'}`);
 
     // For daily timeframe strategy, we typically run after market close
-    // So we don't strictly need market to be open, but log the status
-    if (!marketOpen && config.strategy.timeframe === '1d') {
+    if (!marketOpen && timeframe === '1d') {
       logger.info('Market is closed - running end-of-day analysis');
     }
 
     // 2. Fetch market data for all symbols
-    logger.info(`Fetching market data for ${config.strategy.symbols.length} symbols`, {
-      symbols: config.strategy.symbols,
-      timeframe: config.strategy.timeframe,
-    });
+    logger.info(`Fetching market data for ${symbols.length} symbols`, { symbols, timeframe });
 
     const marketData = getMarketData();
 
     // Fetch enough candles for the slow MA calculation + buffer
-    const requiredCandles = config.strategy.slowMAPeriod + 10;
+    const requiredCandles = slowMAPeriod + 10;
 
-    const candleMap = await marketData.getMultipleCandles(
-      config.strategy.symbols,
-      config.strategy.timeframe,
-      requiredCandles
-    );
+    const candleMap = await marketData.getMultipleCandles(symbols, timeframe, requiredCandles);
 
     // Normalize candles with Date timestamps
     const normalizedCandleMap = new Map();
@@ -64,14 +60,9 @@ async function runTradingLoop(): Promise<void> {
     logger.info('Generating trading signals');
 
     const signalResults = generateMultipleSignals(
-      config.strategy.symbols,
+      symbols,
       normalizedCandleMap,
-      {
-        fastPeriod: config.strategy.fastMAPeriod,
-        slowPeriod: config.strategy.slowMAPeriod,
-        useEMA: config.strategy.useEMA,
-        minStrength: config.strategy.minSignalStrength,
-      }
+      { fastPeriod: fastMAPeriod, slowPeriod: slowMAPeriod, useEMA, minStrength: minSignalStrength }
     );
 
     // Filter for actionable signals (buy/sell only)
@@ -82,75 +73,76 @@ async function runTradingLoop(): Promise<void> {
       actionableSignals: actionableSignals.length,
     });
 
-    // 4. Log signals to database
+    // 4. Execute trades immediately based on signals
     const db = getDbClient();
-
-    for (const result of actionableSignals) {
-      try {
-        await db.logSignal({
-          ...result.signal,
-          executed: false, // Will be updated if trade executes
-        });
-      } catch (error) {
-        logger.warn('Failed to log signal to database', {
-          symbol: result.signal.symbol,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-
-    // 5. Display current portfolio
     const portfolio = getPortfolio();
-    await portfolio.logSummary();
 
-    // 6. Execute trades based on signals
     if (actionableSignals.length > 0) {
       logger.info('Executing trading signals');
 
       const executor = getExecutor({
-        positionSizePercent: config.trading.positionSizePercent,
-        maxPositions: config.trading.maxPositions,
-        dryRun: config.trading.dryRun,
-        minSignalStrength: config.strategy.minSignalStrength,
+        positionSizePercent,
+        maxPositions,
+        dryRun,
+        minSignalStrength,
       });
 
       const trades = await executor.executeSignals(actionableSignals);
 
       logger.info(`Executed ${trades.length} trades`, {
         tradesExecuted: trades.length,
-        dryRun: config.trading.dryRun,
+        dryRun,
       });
+
+      // Log signals to database (fire and forget)
+      for (const result of actionableSignals) {
+        db.logSignal({
+          ...result.signal,
+          executed: trades.some(t => t.symbol === result.signal.symbol),
+        }).catch(error => {
+          logger.warn('Failed to log signal to database', {
+            symbol: result.signal.symbol,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+      }
     } else {
       logger.info('No actionable signals to execute');
     }
 
-    // 7. Save candles to database for historical analysis
-    try {
-      for (const [symbol, candles] of candleMap.entries()) {
-        if (candles.length > 0) {
-          await db.saveCandles(candles);
-        }
+    // 5. Display current portfolio
+    await portfolio.logSummary();
+
+    // 6. Save candles to database for historical analysis (fire and forget)
+    for (const [symbol, candles] of candleMap.entries()) {
+      if (candles.length > 0) {
+        db.saveCandles(candles).catch(error => {
+          logger.warn('Failed to save candles to database', {
+            symbol,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
       }
-    } catch (error) {
-      logger.warn('Failed to save candles to database', {
-        error: error instanceof Error ? error.message : String(error),
-      });
     }
 
-    // 8. Sync portfolio to database
-    await portfolio.syncToDatabase();
+    // 7. Sync portfolio to database (fire and forget)
+    portfolio.syncToDatabase().catch(error => {
+      logger.warn('Failed to sync portfolio to database', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
 
-    // 9. Log completion
+    // 8. Log completion
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
     logger.info('='.repeat(60));
     logger.info(`Trading loop completed in ${duration}s`);
     logger.info('='.repeat(60));
   } catch (error) {
+    // Log error but don't crash the app - let scheduler continue
     logger.error('Trading loop failed', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
     });
-    throw error;
   }
 }
 

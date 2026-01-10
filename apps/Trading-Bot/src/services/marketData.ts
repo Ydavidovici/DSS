@@ -70,7 +70,7 @@ export class MarketDataService {
         symbol: query.symbol,
         error: error instanceof Error ? error.message : String(error),
       });
-      throw error;
+      return [];
     }
   }
 
@@ -79,7 +79,7 @@ export class MarketDataService {
    * @param symbol Trading symbol
    * @returns Current price
    */
-  async getLatestPrice(symbol: string): Promise<number> {
+  async getLatestPrice(symbol: string): Promise<number | null> {
     try {
       const trade = await this.alpaca.getLatestTrade(symbol);
       logger.debug(`Latest price for ${symbol}: $${trade.Price}`, {
@@ -92,7 +92,7 @@ export class MarketDataService {
         symbol,
         error: error instanceof Error ? error.message : String(error),
       });
-      throw error;
+      return null;
     }
   }
 
@@ -115,7 +115,7 @@ export class MarketDataService {
         symbol,
         error: error instanceof Error ? error.message : String(error),
       });
-      throw error;
+      return null;
     }
   }
 
@@ -208,7 +208,7 @@ export class MarketDataService {
         symbol,
         error: error instanceof Error ? error.message : String(error),
       });
-      throw error;
+      return null;
     }
   }
 
@@ -219,21 +219,30 @@ export class MarketDataService {
   async isTradable(symbol: string): Promise<boolean> {
     try {
       const asset = await this.getAsset(symbol);
+      if (!asset) return false;
       return asset.tradable && asset.status === 'active';
-    } catch {
+    } catch (error) {
+      logger.error(`Failed to check if ${symbol} is tradable`, {
+        symbol,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return false;
     }
   }
 }
 
-// Export singleton instance
-let marketDataInstance: MarketDataService | null = null;
+// Export singleton instances per account (for multi-account support)
+const marketDataInstances = new Map<string, MarketDataService>();
 
-export function getMarketData(): MarketDataService {
-  if (!marketDataInstance) {
-    marketDataInstance = new MarketDataService();
+export function getMarketData(accountKey?: string): MarketDataService {
+  // Use API key as account identifier for multi-account support
+  const key = accountKey || process.env.APCA_API_KEY || 'default';
+
+  if (!marketDataInstances.has(key)) {
+    marketDataInstances.set(key, new MarketDataService());
   }
-  return marketDataInstance;
+
+  return marketDataInstances.get(key)!;
 }
 
 export default getMarketData;

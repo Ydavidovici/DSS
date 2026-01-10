@@ -28,9 +28,25 @@ export interface StrategyConfig {
 }
 
 /**
+ * Calculate signal strength based on MA separation
+ * @param fastMA Current fast MA value
+ * @param slowMA Current slow MA value
+ * @returns Strength value between 0 and 1
+ */
+function calculateSignalStrength(fastMA: number, slowMA: number): number {
+  // Guard against division by zero
+  if (slowMA === 0) {
+    logger.warn('Slow MA is zero, cannot calculate signal strength');
+    return 0;
+  }
+
+  return Math.min(Math.abs(fastMA - slowMA) / slowMA, 1);
+}
+
+/**
  * Generate trading signal based on moving average crossover
  * @param symbol Trading symbol
- * @param candles Historical candles (must include enough data for slow MA)
+ * @param candles Historical candles (must be sorted oldest to newest and have enough data for slow MA)
  * @param config Strategy configuration
  * @returns Trading signal and supporting data
  */
@@ -52,14 +68,9 @@ export function generateSignal(
     return null;
   }
 
-  // Sort candles by timestamp (oldest to newest)
-  const sortedCandles = [...candles].sort(
-    (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
-  );
-
   // Calculate moving averages
   const { fastMA, slowMA } = calculateMovingAverages(
-    sortedCandles,
+    candles,
     fastPeriod,
     slowPeriod,
     useEMA
@@ -69,7 +80,7 @@ export function generateSignal(
   const crossover = detectCrossover(fastMA, slowMA);
 
   // Get latest values
-  const latestCandle = sortedCandles[sortedCandles.length - 1];
+  const latestCandle = candles[candles.length - 1];
   const currentPrice = latestCandle.close;
   const currentFastMA = fastMA[fastMA.length - 1];
   const currentSlowMA = slowMA[slowMA.length - 1];
@@ -82,18 +93,11 @@ export function generateSignal(
   if (crossover === 'bullish') {
     signalType = 'buy';
     reason = `Fast MA (${fastPeriod}) crossed above slow MA (${slowPeriod})`;
-    // Calculate strength based on separation between MAs
-    strength = Math.min(
-      Math.abs(currentFastMA - currentSlowMA) / currentSlowMA,
-      1
-    );
+    strength = calculateSignalStrength(currentFastMA, currentSlowMA);
   } else if (crossover === 'bearish') {
     signalType = 'sell';
     reason = `Fast MA (${fastPeriod}) crossed below slow MA (${slowPeriod})`;
-    strength = Math.min(
-      Math.abs(currentFastMA - currentSlowMA) / currentSlowMA,
-      1
-    );
+    strength = calculateSignalStrength(currentFastMA, currentSlowMA);
   }
 
   // Create signal
@@ -127,7 +131,7 @@ export function generateSignal(
 
   return {
     signal,
-    candles: sortedCandles.map((c) => ({
+    candles: candles.map((c) => ({
       timestamp: c.timestamp,
       close: c.close,
     })),
@@ -158,7 +162,12 @@ export function generateMultipleSignals(
     }
 
     try {
-      const result = generateSignal(symbol, candles, config);
+      // Sort candles before processing
+      const sortedCandles = [...candles].sort(
+        (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
+      );
+
+      const result = generateSignal(symbol, sortedCandles, config);
       if (result) {
         signals.push(result);
       }

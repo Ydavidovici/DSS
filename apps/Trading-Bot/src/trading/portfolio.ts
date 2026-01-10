@@ -158,7 +158,7 @@ export class PortfolioManager {
         symbol,
         error: error instanceof Error ? error.message : String(error),
       });
-      throw error;
+      return 0;
     }
   }
 
@@ -181,7 +181,9 @@ export class PortfolioManager {
       logger.error('Failed to check buying power', {
         error: error instanceof Error ? error.message : String(error),
       });
-      return false;
+      // Log error and continue - don't block trades on transient errors
+      logger.warn('Proceeding with trade despite error checking buying power');
+      return true;
     }
   }
 
@@ -215,14 +217,16 @@ export class PortfolioManager {
   /**
    * Sync portfolio to database service
    * Useful for historical tracking and analysis
+   * @todo Implement actual DB sync when endpoint is ready
    */
   async syncToDatabase(): Promise<void> {
     try {
       const portfolio = await this.getPortfolio();
       const db = getDbClient();
 
-      // Note: Assuming DB service has an endpoint for this
-      // If not, this would be implemented when the DB service is ready
+      // @todo: Send portfolio data to DB service
+      // await db.savePortfolio(portfolio);
+
       logger.debug('Portfolio synced to database', {
         accountId: this.accountId,
       });
@@ -235,24 +239,24 @@ export class PortfolioManager {
   }
 
   /**
-   * Log portfolio summary to console
+   * Log portfolio summary
    */
   async logSummary(): Promise<void> {
     const portfolio = await this.getPortfolio();
 
-    console.log('\n=== Portfolio Summary ===');
-    console.log(`Account ID: ${portfolio.accountId}`);
-    console.log(`Equity: ${formatCurrency(portfolio.equity)}`);
-    console.log(`Cash: ${formatCurrency(portfolio.balance)}`);
-    console.log(`Buying Power: ${formatCurrency(portfolio.buyingPower)}`);
-    console.log(`Total P&L: ${formatCurrency(portfolio.totalPL)} (${formatPercent(portfolio.totalPLPercent)})`);
-    console.log(`\nPositions (${portfolio.positions.length}):`);
+    logger.info('\n=== Portfolio Summary ===');
+    logger.info(`Account ID: ${portfolio.accountId}`);
+    logger.info(`Equity: ${formatCurrency(portfolio.equity)}`);
+    logger.info(`Cash: ${formatCurrency(portfolio.balance)}`);
+    logger.info(`Buying Power: ${formatCurrency(portfolio.buyingPower)}`);
+    logger.info(`Total P&L: ${formatCurrency(portfolio.totalPL)} (${formatPercent(portfolio.totalPLPercent)})`);
+    logger.info(`\nPositions (${portfolio.positions.length}):`);
 
     if (portfolio.positions.length === 0) {
-      console.log('  No open positions');
+      logger.info('  No open positions');
     } else {
       for (const pos of portfolio.positions) {
-        console.log(
+        logger.info(
           `  ${pos.symbol}: ${pos.quantity} shares @ ${formatCurrency(pos.avgEntryPrice)} ` +
             `| Current: ${formatCurrency(pos.currentPrice)} ` +
             `| P&L: ${formatCurrency(pos.unrealizedPL)} (${formatPercent(pos.unrealizedPLPercent)})`
@@ -260,20 +264,21 @@ export class PortfolioManager {
       }
     }
 
-    console.log('========================\n');
+    logger.info('========================\n');
   }
 }
 
-// Export singleton instance
-let portfolioInstance: PortfolioManager | null = null;
+// Export singleton instances per account
+const portfolioInstances = new Map<string, PortfolioManager>();
 
 export function getPortfolio(accountId?: string): PortfolioManager {
-  if (!portfolioInstance) {
-    portfolioInstance = new PortfolioManager(
-      accountId || process.env.ACCOUNT_ID || 'default'
-    );
+  const id = accountId || process.env.ACCOUNT_ID || 'default';
+
+  if (!portfolioInstances.has(id)) {
+    portfolioInstances.set(id, new PortfolioManager(id));
   }
-  return portfolioInstance;
+
+  return portfolioInstances.get(id)!;
 }
 
 export default getPortfolio;

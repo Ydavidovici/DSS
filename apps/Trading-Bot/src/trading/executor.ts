@@ -40,6 +40,91 @@ export class TradeExecutor {
   }
 
   /**
+   * Wait for order to fill by polling status
+   * @param orderId Order ID to poll
+   * @param maxAttempts Maximum poll attempts (default: 30)
+   * @param delayMs Delay between polls in ms (default: 1000)
+   * @returns Filled order or null if timeout
+   */
+  private async waitForOrderFill(
+    orderId: string,
+    maxAttempts: number = 30,
+    delayMs: number = 1000
+  ): Promise<any> {
+    const broker = getBroker();
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const order = await broker.getOrder(orderId);
+
+      if (order.status === 'filled') {
+        logger.debug(`Order ${orderId} filled after ${attempt + 1} attempts`);
+        return order;
+      }
+
+      if (order.status === 'rejected' || order.status === 'cancelled') {
+        logger.warn(`Order ${orderId} ${order.status}`, {
+          orderId,
+          status: order.status,
+        });
+        return null;
+      }
+
+      // Still pending, wait and retry
+      await sleep(delayMs);
+    }
+
+    logger.warn(`Order ${orderId} did not fill within timeout`, { orderId });
+    return null;
+  }
+
+  /**
+   * Common order placement logic
+   * @param orderRequest Order request
+   * @param signal Original signal
+   * @returns Executed trade or null
+   */
+  private async placeAndWaitForOrder(
+    orderRequest: OrderRequest,
+    signal: Signal
+  ): Promise<Trade | null> {
+    const broker = getBroker();
+
+    // Place order
+    logger.info(`Executing ${orderRequest.side.toUpperCase()} order for ${signal.symbol}`, {
+      symbol: signal.symbol,
+      quantity: orderRequest.quantity,
+    });
+
+    const orderResponse = await broker.placeOrder(orderRequest);
+
+    // Wait for order to fill
+    const filledOrder = await this.waitForOrderFill(orderResponse.orderId);
+
+    if (!filledOrder) {
+      logger.error(`Order failed to fill for ${signal.symbol}`, {
+        symbol: signal.symbol,
+        orderId: orderResponse.orderId,
+      });
+      return null;
+    }
+
+    // Convert to Trade record
+    const trade = broker.orderToTrade(filledOrder);
+
+    // Log trade to database (fire and forget)
+    this.logTrade(trade).catch(error => {
+      logger.warn('Failed to log trade to database', {
+        tradeId: trade.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+
+    logger.trade(trade.symbol, trade.side, trade.quantity, trade.price);
+
+    return trade;
+  }
+
+  /**
    * Execute a signal (buy or sell)
    * @param signalResult Signal to execute
    * @returns Executed trade or null if not executed
@@ -75,7 +160,6 @@ export class TradeExecutor {
    */
   private async executeBuy(signal: Signal): Promise<Trade | null> {
     try {
-      const broker = getBroker();
       const portfolio = getPortfolio();
 
       // Check if we already have a position
@@ -123,16 +207,7 @@ export class TradeExecutor {
         return null;
       }
 
-      // Create order request
-      const orderRequest: OrderRequest = {
-        symbol: signal.symbol,
-        side: 'buy',
-        quantity,
-        type: 'market',
-        timeInForce: 'day',
-      };
-
-      // Execute or simulate
+      // Dry run check
       if (this.config.dryRun) {
         logger.info(`[DRY RUN] Would buy ${quantity} shares of ${signal.symbol}`, {
           symbol: signal.symbol,
@@ -143,29 +218,16 @@ export class TradeExecutor {
         return null;
       }
 
-      // Place order
-      logger.info(`Executing BUY order for ${signal.symbol}`, {
+      // Create and place order
+      const orderRequest: OrderRequest = {
         symbol: signal.symbol,
+        side: 'buy',
         quantity,
-      });
+        type: 'market',
+        timeInForce: 'day',
+      };
 
-      const orderResponse = await broker.placeOrder(orderRequest);
-
-      // Wait a bit for order to fill
-      await sleep(2000);
-
-      // Get filled order details
-      const filledOrder = await broker.getOrder(orderResponse.orderId);
-
-      // Convert to Trade record
-      const trade = broker.orderToTrade(filledOrder);
-
-      // Log trade to database
-      await this.logTrade(trade);
-
-      logger.trade(trade.symbol, trade.side, trade.quantity, trade.price);
-
-      return trade;
+      return await this.placeAndWaitForOrder(orderRequest, signal);
     } catch (error) {
       logger.error(`Failed to execute buy for ${signal.symbol}`, {
         symbol: signal.symbol,
@@ -182,7 +244,6 @@ export class TradeExecutor {
    */
   private async executeSell(signal: Signal): Promise<Trade | null> {
     try {
-      const broker = getBroker();
       const portfolio = getPortfolio();
 
       // Check if we have a position to sell
@@ -196,16 +257,7 @@ export class TradeExecutor {
 
       const quantity = position.quantity;
 
-      // Create order request
-      const orderRequest: OrderRequest = {
-        symbol: signal.symbol,
-        side: 'sell',
-        quantity,
-        type: 'market',
-        timeInForce: 'day',
-      };
-
-      // Execute or simulate
+      // Dry run check
       if (this.config.dryRun) {
         logger.info(`[DRY RUN] Would sell ${quantity} shares of ${signal.symbol}`, {
           symbol: signal.symbol,
@@ -216,29 +268,16 @@ export class TradeExecutor {
         return null;
       }
 
-      // Place order
-      logger.info(`Executing SELL order for ${signal.symbol}`, {
+      // Create and place order
+      const orderRequest: OrderRequest = {
         symbol: signal.symbol,
+        side: 'sell',
         quantity,
-      });
+        type: 'market',
+        timeInForce: 'day',
+      };
 
-      const orderResponse = await broker.placeOrder(orderRequest);
-
-      // Wait a bit for order to fill
-      await sleep(2000);
-
-      // Get filled order details
-      const filledOrder = await broker.getOrder(orderResponse.orderId);
-
-      // Convert to Trade record
-      const trade = broker.orderToTrade(filledOrder);
-
-      // Log trade to database
-      await this.logTrade(trade);
-
-      logger.trade(trade.symbol, trade.side, trade.quantity, trade.price);
-
-      return trade;
+      return await this.placeAndWaitForOrder(orderRequest, signal);
     } catch (error) {
       logger.error(`Failed to execute sell for ${signal.symbol}`, {
         symbol: signal.symbol,
@@ -287,16 +326,8 @@ export class TradeExecutor {
    * @param trade Trade record
    */
   private async logTrade(trade: Trade): Promise<void> {
-    try {
-      const db = getDbClient();
-      await db.logTrade(trade);
-    } catch (error) {
-      logger.warn('Failed to log trade to database', {
-        tradeId: trade.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      // Don't throw - logging failure shouldn't stop execution
-    }
+    const db = getDbClient();
+    await db.logTrade(trade);
   }
 
   /**
@@ -322,6 +353,9 @@ let executorInstance: TradeExecutor | null = null;
 export function getExecutor(config?: Partial<ExecutionConfig>): TradeExecutor {
   if (!executorInstance) {
     executorInstance = new TradeExecutor(config);
+  } else if (config) {
+    // Update config if provided
+    executorInstance.updateConfig(config);
   }
   return executorInstance;
 }

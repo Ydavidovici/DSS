@@ -47,7 +47,8 @@ export class BrokerService {
       logger.error('Failed to fetch account info', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw error;
+      // Don't throw - return error so caller can decide how to handle
+      return null;
     }
   }
 
@@ -64,7 +65,7 @@ export class BrokerService {
       logger.error('Failed to fetch positions', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw error;
+      return [];
     }
   }
 
@@ -161,7 +162,7 @@ export class BrokerService {
       logger.error(`Failed to fetch order ${orderId}`, {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw error;
+      return null;
     }
   }
 
@@ -169,15 +170,16 @@ export class BrokerService {
    * Cancel an order
    * @param orderId Order identifier
    */
-  async cancelOrder(orderId: string): Promise<void> {
+  async cancelOrder(orderId: string): Promise<boolean> {
     try {
       await this.alpaca.cancelOrder(orderId);
       logger.info(`Cancelled order ${orderId}`);
+      return true;
     } catch (error) {
       logger.error(`Failed to cancel order ${orderId}`, {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw error;
+      return false;
     }
   }
 
@@ -198,7 +200,7 @@ export class BrokerService {
       logger.error('Failed to fetch orders', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw error;
+      return [];
     }
   }
 
@@ -207,14 +209,24 @@ export class BrokerService {
    * @param order Alpaca order object
    * @returns Trade record
    */
-  orderToTrade(order: any): Trade {
+  orderToTrade(order: {
+    id: string;
+    symbol: string;
+    side: string;
+    qty: string;
+    filled_avg_price?: string;
+    filled_at?: string;
+    created_at: string;
+    type: string;
+    status: string;
+  }): Trade {
     return {
       id: generateId(),
       symbol: order.symbol,
-      side: order.side,
+      side: order.side as 'buy' | 'sell',
       quantity: parseFloat(order.qty),
       price: parseFloat(order.filled_avg_price || '0'),
-      value: parseFloat(order.filled_qty || '0') * parseFloat(order.filled_avg_price || '0'),
+      value: parseFloat(order.qty) * parseFloat(order.filled_avg_price || '0'),
       timestamp: formatDate(order.filled_at || order.created_at),
       orderType: order.type,
       status: this.mapOrderStatus(order.status),
@@ -251,16 +263,19 @@ export class BrokerService {
 
   /**
    * Check if market is open
+   * @returns True if market is open, false if closed, throws on error
    */
   async isMarketOpen(): Promise<boolean> {
     try {
       const clock = await this.alpaca.getClock();
-      return clock.is_open;
+      const isOpen = clock.is_open;
+      logger.debug(`Market is ${isOpen ? 'open' : 'closed'}`);
+      return isOpen;
     } catch (error) {
       logger.error('Failed to check market status', {
         error: error instanceof Error ? error.message : String(error),
       });
-      return false;
+      throw error;
     }
   }
 
@@ -278,19 +293,23 @@ export class BrokerService {
       logger.error('Failed to fetch market calendar', {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw error;
+      return [];
     }
   }
 }
 
-// Export singleton instance
-let brokerInstance: BrokerService | null = null;
+// Export singleton instances per account (for multi-account support)
+const brokerInstances = new Map<string, BrokerService>();
 
-export function getBroker(): BrokerService {
-  if (!brokerInstance) {
-    brokerInstance = new BrokerService();
+export function getBroker(accountKey?: string): BrokerService {
+  // Use API key as account identifier for multi-account support
+  const key = accountKey || process.env.APCA_API_KEY || 'default';
+
+  if (!brokerInstances.has(key)) {
+    brokerInstances.set(key, new BrokerService());
   }
-  return brokerInstance;
+
+  return brokerInstances.get(key)!;
 }
 
 export default getBroker;

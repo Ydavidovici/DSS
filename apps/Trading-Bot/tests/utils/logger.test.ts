@@ -2,79 +2,155 @@
  * Tests for logger utility
  */
 
-import { describe, test, expect, beforeEach } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach, mock } from 'bun:test';
 import { logger } from '../../src/utils/logger';
 
 describe('Logger', () => {
+  let consoleLogMock: any;
+  let originalConsoleLog: any;
+
   beforeEach(() => {
     // Reset log level before each test
     logger.setLogLevel('info');
+
+    // Mock console.log to capture output
+    originalConsoleLog = console.log;
+    consoleLogMock = mock(() => {});
+    console.log = consoleLogMock;
+  });
+
+  afterEach(() => {
+    // Restore original console.log
+    console.log = originalConsoleLog;
   });
 
   describe('setLogLevel', () => {
-    test('should set log level', () => {
-      logger.setLogLevel('debug');
-      logger.setLogLevel('warn');
+    test('should set log level and affect filtering', () => {
       logger.setLogLevel('error');
+      logger.info('Should not appear');
+      expect(consoleLogMock).not.toHaveBeenCalled();
 
-      // If we get here without errors, it works
-      expect(true).toBe(true);
+      logger.error('Should appear');
+      expect(consoleLogMock).toHaveBeenCalled();
     });
   });
 
   describe('logging methods', () => {
-    test('should have debug method', () => {
-      expect(typeof logger.debug).toBe('function');
+    test('should log debug message', () => {
+      logger.setLogLevel('debug');
       logger.debug('Test debug message');
+
+      expect(consoleLogMock).toHaveBeenCalledTimes(1);
+      const call = consoleLogMock.mock.calls[0][0];
+      expect(call).toContain('[DEBUG]');
+      expect(call).toContain('Test debug message');
     });
 
-    test('should have info method', () => {
-      expect(typeof logger.info).toBe('function');
+    test('should log info message', () => {
       logger.info('Test info message');
+
+      expect(consoleLogMock).toHaveBeenCalledTimes(1);
+      const call = consoleLogMock.mock.calls[0][0];
+      expect(call).toContain('[INFO]');
+      expect(call).toContain('Test info message');
     });
 
-    test('should have warn method', () => {
-      expect(typeof logger.warn).toBe('function');
+    test('should log warn message', () => {
       logger.warn('Test warn message');
+
+      expect(consoleLogMock).toHaveBeenCalledTimes(1);
+      const call = consoleLogMock.mock.calls[0][0];
+      expect(call).toContain('[WARN]');
+      expect(call).toContain('Test warn message');
     });
 
-    test('should have error method', () => {
-      expect(typeof logger.error).toBe('function');
+    test('should log error message', () => {
       logger.error('Test error message');
+
+      expect(consoleLogMock).toHaveBeenCalledTimes(1);
+      const call = consoleLogMock.mock.calls[0][0];
+      expect(call).toContain('[ERROR]');
+      expect(call).toContain('Test error message');
     });
 
     test('should accept data object', () => {
       logger.info('Test with data', { symbol: 'AAPL', price: 150 });
-      logger.warn('Test with data', { count: 5 });
+
+      expect(consoleLogMock).toHaveBeenCalledTimes(1);
+      const args = consoleLogMock.mock.calls[0];
+      expect(args[0]).toContain('Test with data');
+      expect(args[1]).toEqual({ symbol: 'AAPL', price: 150 });
     });
   });
 
   describe('specialized logging', () => {
-    test('should have trade logging method', () => {
-      expect(typeof logger.trade).toBe('function');
+    test('should log trade with formatted message', () => {
       logger.trade('AAPL', 'buy', 10, 150.0);
+
+      expect(consoleLogMock).toHaveBeenCalledTimes(1);
+      const args = consoleLogMock.mock.calls[0];
+      expect(args[0]).toContain('Trade executed');
+      expect(args[0]).toContain('BUY');
+      expect(args[0]).toContain('10');
+      expect(args[0]).toContain('AAPL');
+      expect(args[0]).toContain('$150.00');
+      expect(args[1]).toEqual({
+        symbol: 'AAPL',
+        side: 'buy',
+        quantity: 10,
+        price: 150.0,
+        value: 1500.0,
+      });
     });
 
-    test('should have signal logging method', () => {
-      expect(typeof logger.signal).toBe('function');
+    test('should log signal with formatted message', () => {
       logger.signal('AAPL', 'buy', 150.0, 'MA crossover');
+
+      expect(consoleLogMock).toHaveBeenCalledTimes(1);
+      const args = consoleLogMock.mock.calls[0];
+      expect(args[0]).toContain('Signal generated');
+      expect(args[0]).toContain('BUY');
+      expect(args[0]).toContain('AAPL');
+      expect(args[0]).toContain('$150.00');
+      expect(args[1]).toEqual({
+        symbol: 'AAPL',
+        type: 'buy',
+        price: 150.0,
+        reason: 'MA crossover',
+      });
     });
   });
 
   describe('log level filtering', () => {
-    test('should filter based on log level', () => {
-      // Set to error level - should only show errors
+    test('should filter debug when level is info', () => {
+      logger.setLogLevel('info');
+      logger.debug('Debug message');
+
+      expect(consoleLogMock).not.toHaveBeenCalled();
+    });
+
+    test('should filter debug and info when level is warn', () => {
+      logger.setLogLevel('warn');
+      logger.debug('Debug message');
+      logger.info('Info message');
+
+      expect(consoleLogMock).not.toHaveBeenCalled();
+
+      logger.warn('Warn message');
+      expect(consoleLogMock).toHaveBeenCalledTimes(1);
+    });
+
+    test('should only show errors when level is error', () => {
       logger.setLogLevel('error');
 
-      // These should be filtered out (no errors expected)
       logger.debug('Debug message');
       logger.info('Info message');
       logger.warn('Warn message');
 
-      // This should appear
-      logger.error('Error message');
+      expect(consoleLogMock).not.toHaveBeenCalled();
 
-      expect(true).toBe(true);
+      logger.error('Error message');
+      expect(consoleLogMock).toHaveBeenCalledTimes(1);
     });
 
     test('should show all logs at debug level', () => {
@@ -85,7 +161,7 @@ describe('Logger', () => {
       logger.warn('Warn message');
       logger.error('Error message');
 
-      expect(true).toBe(true);
+      expect(consoleLogMock).toHaveBeenCalledTimes(4);
     });
   });
 });

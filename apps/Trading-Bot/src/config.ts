@@ -93,7 +93,7 @@ export const scheduleConfig = {
   runOnce: process.env.RUN_ONCE === 'true',
 
   /** Enable scheduled execution */
-  enableSchedule: process.env.ENABLE_SCHEDULE !== 'false',
+  enableSchedule: process.env.ENABLE_SCHEDULE === 'true',
 };
 
 /**
