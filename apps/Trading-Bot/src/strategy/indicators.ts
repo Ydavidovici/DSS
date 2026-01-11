@@ -3,8 +3,8 @@
  * Currently implements SMA and EMA for moving average crossover strategy
  */
 
-import type { NormalizedCandle } from '../types/candle';
-import { logger } from '../utils/logger';
+import type {NormalizedCandle} from '../types/candle';
+import {logger} from '../utils/logger';
 
 /**
  * Calculate Simple Moving Average (SMA)
@@ -13,30 +13,30 @@ import { logger } from '../utils/logger';
  * @returns Array of SMA values (shorter than input by period-1)
  */
 export function calculateSMA(values: number[], period: number): number[] {
-  if (values.length < period) {
-    logger.warn('Insufficient data for SMA calculation', {
-      dataLength: values.length,
-      period,
-    });
-    return [];
-  }
+    if (values.length < period) {
+        logger.warn('Insufficient data for SMA calculation', {
+            dataLength: values.length,
+            period,
+        });
+        return [];
+    }
 
-  const sma: number[] = [];
+    const sma: number[] = [];
 
-  // Calculate first SMA
-  let sum = 0;
-  for (let i = 0; i < period; i++) {
-    sum += values[i];
-  }
-  sma.push(sum / period);
-
-  // Use sliding window for subsequent values
-  for (let i = period; i < values.length; i++) {
-    sum = sum - values[i - period] + values[i];
+    // Calculate first SMA
+    let sum = 0;
+    for (let i = 0; i < period; i++) {
+        sum += values[i];
+    }
     sma.push(sum / period);
-  }
 
-  return sma;
+    // Use sliding window for subsequent values
+    for (let i = period; i < values.length; i++) {
+        sum = sum - values[i - period] + values[i];
+        sma.push(sum / period);
+    }
+
+    return sma;
 }
 
 /**
@@ -46,28 +46,28 @@ export function calculateSMA(values: number[], period: number): number[] {
  * @returns Array of EMA values (length = values.length - period + 1)
  */
 export function calculateEMA(values: number[], period: number): number[] {
-  if (values.length < period) {
-    logger.warn('Insufficient data for EMA calculation', {
-      dataLength: values.length,
-      period,
-    });
-    return [];
-  }
+    if (values.length < period) {
+        logger.warn('Insufficient data for EMA calculation', {
+            dataLength: values.length,
+            period,
+        });
+        return [];
+    }
 
-  const ema: number[] = [];
-  const multiplier = 2 / (period + 1);
+    const ema: number[] = [];
+    const multiplier = 2 / (period + 1);
 
-  // First EMA value is SMA
-  const firstSMA = values.slice(0, period).reduce((acc, val) => acc + val, 0) / period;
-  ema.push(firstSMA);
+    // First EMA value is SMA
+    const firstSMA = values.slice(0, period).reduce((acc, val) => acc + val, 0) / period;
+    ema.push(firstSMA);
 
-  // Calculate subsequent EMA values
-  for (let i = period; i < values.length; i++) {
-    const emaValue = (values[i] - ema[ema.length - 1]) * multiplier + ema[ema.length - 1];
-    ema.push(emaValue);
-  }
+    // Calculate subsequent EMA values
+    for (let i = period; i < values.length; i++) {
+        const emaValue = (values[i] - ema[ema.length - 1]) * multiplier + ema[ema.length - 1];
+        ema.push(emaValue);
+    }
 
-  return ema;
+    return ema;
 }
 
 /**
@@ -76,7 +76,7 @@ export function calculateEMA(values: number[], period: number): number[] {
  * @returns Array of closing prices
  */
 export function extractClosePrices(candles: NormalizedCandle[]): number[] {
-  return candles.map((candle) => candle.close);
+    return candles.map((candle) => candle.close);
 }
 
 /**
@@ -88,27 +88,27 @@ export function extractClosePrices(candles: NormalizedCandle[]): number[] {
  * @returns Object containing both MA arrays
  */
 export function calculateMovingAverages(
-  candles: NormalizedCandle[],
-  fastPeriod: number,
-  slowPeriod: number,
-  useEMA: boolean = false
+    candles: NormalizedCandle[],
+    fastPeriod: number,
+    slowPeriod: number,
+    useEMA: boolean = false
 ): { fastMA: number[]; slowMA: number[] } {
-  const closePrices = extractClosePrices(candles);
+    const closePrices = extractClosePrices(candles);
 
-  const calculateMA = useEMA ? calculateEMA : calculateSMA;
+    const calculateMA = useEMA ? calculateEMA : calculateSMA;
 
-  const fastMA = calculateMA(closePrices, fastPeriod);
-  const slowMA = calculateMA(closePrices, slowPeriod);
+    const fastMA = calculateMA(closePrices, fastPeriod);
+    const slowMA = calculateMA(closePrices, slowPeriod);
 
-  logger.debug('Calculated moving averages', {
-    fastPeriod,
-    slowPeriod,
-    useEMA,
-    fastMALength: fastMA.length,
-    slowMALength: slowMA.length,
-  });
+    logger.debug('Calculated moving averages', {
+        fastPeriod,
+        slowPeriod,
+        useEMA,
+        fastMALength: fastMA.length,
+        slowMALength: slowMA.length,
+    });
 
-  return { fastMA, slowMA };
+    return {fastMA, slowMA};
 }
 
 /**
@@ -118,54 +118,44 @@ export function calculateMovingAverages(
  * @returns 'bullish' (fast crosses above slow), 'bearish' (fast crosses below slow), or null
  */
 export function detectCrossover(
-  fastMA: number[],
-  slowMA: number[]
+    fastMA: number[],
+    slowMA: number[]
 ): 'bullish' | 'bearish' | null {
-  // Need at least 2 data points to detect crossover
-  if (fastMA.length < 2 || slowMA.length < 2) {
+    // Need at least 2 data points in the shorter array
+    if (fastMA.length < 2 || slowMA.length < 2) {
+        return null;
+    }
+
+    // Use the tail end of both arrays (most recent values)
+    // They don't need to be the same length—just compare the last 2 of each
+    const currentFast = fastMA[fastMA.length - 1];
+    const previousFast = fastMA[fastMA.length - 2];
+    const currentSlow = slowMA[slowMA.length - 1];
+    const previousSlow = slowMA[slowMA.length - 2];
+
+    // Bullish crossover: fast crosses above slow
+    if (previousFast <= previousSlow && currentFast > currentSlow) {
+        logger.debug('Bullish crossover detected', {
+            previousFast,
+            currentFast,
+            previousSlow,
+            currentSlow,
+        });
+        return 'bullish';
+    }
+
+    // Bearish crossover: fast crosses below slow
+    if (previousFast >= previousSlow && currentFast < currentSlow) {
+        logger.debug('Bearish crossover detected', {
+            previousFast,
+            currentFast,
+            previousSlow,
+            currentSlow,
+        });
+        return 'bearish';
+    }
+
     return null;
-  }
-
-  // Validate arrays are aligned
-  if (fastMA.length !== slowMA.length) {
-    logger.warn('MA arrays have different lengths', {
-      fastMALength: fastMA.length,
-      slowMALength: slowMA.length,
-    });
-    return null;
-  }
-
-  // Get current and previous values
-  const currentFast = fastMA[fastMA.length - 1];
-  const previousFast = fastMA[fastMA.length - 2];
-  const currentSlow = slowMA[slowMA.length - 1];
-  const previousSlow = slowMA[slowMA.length - 2];
-
-  // Bullish crossover: fast crosses above slow
-  // Previous: fast <= slow, Current: fast > slow
-  if (previousFast <= previousSlow && currentFast > currentSlow) {
-    logger.debug('Bullish crossover detected', {
-      previousFast,
-      currentFast,
-      previousSlow,
-      currentSlow,
-    });
-    return 'bullish';
-  }
-
-  // Bearish crossover: fast crosses below slow
-  // Previous: fast >= slow, Current: fast < slow
-  if (previousFast >= previousSlow && currentFast < currentSlow) {
-    logger.debug('Bearish crossover detected', {
-      previousFast,
-      currentFast,
-      previousSlow,
-      currentSlow,
-    });
-    return 'bearish';
-  }
-
-  return null;
 }
 
 /**
@@ -176,8 +166,8 @@ export function detectCrossover(
  * @todo Implement RSI calculation for future strategies
  */
 export function calculateRSI(values: number[], period: number = 14): number[] {
-  logger.warn('RSI calculation not yet implemented');
-  return [];
+    logger.warn('RSI calculation not yet implemented');
+    return [];
 }
 
 /**
@@ -189,12 +179,12 @@ export function calculateRSI(values: number[], period: number = 14): number[] {
  * @todo Implement Bollinger Bands for future strategies
  */
 export function calculateBollingerBands(
-  values: number[],
-  period: number = 20,
-  standardDeviations: number = 2
+    values: number[],
+    period: number = 20,
+    standardDeviations: number = 2
 ): { upper: number[]; middle: number[]; lower: number[] } {
-  logger.warn('Bollinger Bands calculation not yet implemented');
-  return { upper: [], middle: [], lower: [] };
+    logger.warn('Bollinger Bands calculation not yet implemented');
+    return {upper: [], middle: [], lower: []};
 }
 
 /**
@@ -207,11 +197,11 @@ export function calculateBollingerBands(
  * @todo Implement MACD for future strategies
  */
 export function calculateMACD(
-  values: number[],
-  fastPeriod: number = 12,
-  slowPeriod: number = 26,
-  signalPeriod: number = 9
+    values: number[],
+    fastPeriod: number = 12,
+    slowPeriod: number = 26,
+    signalPeriod: number = 9
 ): { macd: number[]; signal: number[]; histogram: number[] } {
-  logger.warn('MACD calculation not yet implemented');
-  return { macd: [], signal: [], histogram: [] };
+    logger.warn('MACD calculation not yet implemented');
+    return {macd: [], signal: [], histogram: []};
 }

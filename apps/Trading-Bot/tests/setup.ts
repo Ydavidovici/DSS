@@ -72,6 +72,7 @@ export function generateMockNormalizedCandles(
 
 /**
  * Generate candles with specific pattern for testing crossovers
+ * Creates data where the crossover happens at the very end of the series
  */
 export function generateCrossoverCandles(
   symbol: string,
@@ -81,6 +82,9 @@ export function generateCrossoverCandles(
   const baseDate = new Date('2024-01-01');
 
   // Generate 60 candles to have enough data for MA calculation
+  // For a crossover to happen at the end:
+  // - Most candles are flat so fast MA ≈ slow MA
+  // - Last candle has a price change that tips fast MA across slow MA
   for (let i = 0; i < 60; i++) {
     const date = new Date(baseDate);
     date.setDate(date.getDate() + i);
@@ -88,17 +92,27 @@ export function generateCrossoverCandles(
     let close: number;
 
     if (crossoverType === 'bullish') {
-      // Start low, then trend up to create bullish crossover
-      close = i < 30 ? 100 - i * 0.5 : 100 + (i - 30) * 2;
+      // Flat prices, with last candle spiking up
+      // This causes fast MA to cross above slow MA
+      if (i < 59) {
+        close = 100;
+      } else {
+        close = 110; // Spike on last candle
+      }
     } else {
-      // Start high, then trend down to create bearish crossover
-      close = i < 30 ? 100 + i * 0.5 : 100 - (i - 30) * 2;
+      // Flat prices, with last candle dropping
+      // This causes fast MA to cross below slow MA
+      if (i < 59) {
+        close = 100;
+      } else {
+        close = 90; // Drop on last candle
+      }
     }
 
     const volatility = close * 0.01;
-    const open = close + (Math.random() - 0.5) * volatility;
-    const high = Math.max(open, close) + Math.random() * volatility;
-    const low = Math.min(open, close) - Math.random() * volatility;
+    const open = close;
+    const high = close + volatility;
+    const low = close - volatility;
 
     candles.push({
       symbol,

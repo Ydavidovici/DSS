@@ -128,7 +128,8 @@ describe('Utility Helpers', () => {
     });
 
     test('should handle negative values', () => {
-      expect(percentChange(-100, -50)).toBe(50);
+      // Going from -100 to -50: ((−50 − (−100)) / −100) × 100 = −50%
+      expect(percentChange(-100, -50)).toBe(-50);
     });
   });
 
