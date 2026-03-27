@@ -1,18 +1,26 @@
-export type UserDB = {
-  id: string;
-  username: string;
-  email: string;
-  password_hash: string;
-  verified: boolean;
-  roles: unknown[]; // JSONB
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
-};
+export interface User {
+    id: string; // UUID
+    first_name: string | null;
+    last_name: string | null;
+    email: string;
+    password_hash: string;
+    verified: boolean;
+    verified_at: Date | null;
+    created_at: Date;
+    updated_at: Date;
+}
 
-export type UserPublic = Omit<UserDB, 'password_hash'>;
+export interface CreateUserDTO {
+    first_name?: string;
+    last_name?: string;
+    email: string;
+    password_hash: string;
+}
 
-export const toPublic = (u: UserDB): UserPublic => {
-  const { password_hash, ...rest } = u;
-  return { ...rest, roles: Array.isArray(rest.roles) ? rest.roles : [] };
-};
+export interface UpdateUserDTO {
+    first_name?: string;
+    last_name?: string;
+    password_hash?: string;
+    verified?: boolean;
+    verified_at?: Date | null;
+}

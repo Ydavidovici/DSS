@@ -2,9 +2,7 @@ import {Router, Request, Response} from "express";
 import axios from "axios";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
-import {signUserAccessToken, signServiceToken, signRefreshToken, verifyToken, getJWKS} from "../utils/jwt";
-import {redis, kv} from "../utils/redis";
-import {revokeToken, isRevoked} from "../utils/tokenBlacklist";
+import {signUserAccessToken, signServiceToken, signRefreshToken, verifyToken} from "../utils/jwt";
 import {loginIpLimiter, loginAccountLimiter, resetLimiter, refreshLimiter} from "../middleware/rateLimit";
 import {mailer} from "../utils/mailer";
 import {requireAuth, AuthRequest} from "../middleware/requireAuth";
@@ -19,80 +17,64 @@ const COOKIE_SAMESITE = (process.env.COOKIE_SAMESITE as "lax" | "strict" | "none
 const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || undefined;
 const IS_PROD = process.env.NODE_ENV === "production";
 
-const refreshCookieOpts = {
+const cookieOptions = {
     httpOnly: true,
     secure: IS_PROD || COOKIE_SAMESITE === "none",
     sameSite: COOKIE_SAMESITE,
-    maxAge: 15 * 60 * 1000,
+    maxAge: 15 * 60 * 1000, // 15 minutes
     path: "/",
     domain: COOKIE_DOMAIN,
 } as const;
 
-const accessCookieOpts = {
-    httpOnly: true,
-    secure: IS_PROD || COOKIE_SAMESITE === "none",
-    sameSite: COOKIE_SAMESITE,
-    maxAge: 15 * 60 * 1000,
-    path: "/",
-    domain: COOKIE_DOMAIN,
-} as const;
-
-function appendQuery(url: string, params: Record<string, string | number | boolean | undefined>) {
-    const u = new URL(url);
-    for (const [k, v] of Object.entries(params)) {
-        if (v !== undefined) {
-            u.searchParams.set(k, String(v));
+function appendQueryParameters(baseUrl: string, parameters: Record<string, string | number | boolean | undefined>) {
+    const urlObject = new URL(baseUrl);
+    for (const [key, value] of Object.entries(parameters)) {
+        if (value !== undefined) {
+            urlObject.searchParams.set(key, String(value));
         }
     }
-    return u.toString();
+    return urlObject.toString();
 }
 
-
-router.post("/register", async (req, res) => {
-    const {username, password, email, redirect_uri} = req.body;
+router.post("/register", async (req: Request, res: Response) => {
+    const {username, password, email} = req.body;
     if (!username || !password || !email) {
-        return res.status(400).send("Missing fields");
+        return res.status(400).send("Missing required fields.");
     }
 
     try {
-        const hash = await bcrypt.hash(password, 10);
+        const passwordHash = await bcrypt.hash(password, 10);
+        const serviceToken = await signServiceToken({scope: "users:create"});
 
-        const svc = await signServiceToken({scope: "users:create"});
-        const {data: created} = await axios.post(
+        const {data: responseBody} = await axios.post(
             `${DB_SERVICE_API_URL}/users`,
-            {username, password_hash: hash, email},
-            {headers: {Authorization: `Bearer ${svc}`}},
+            {username, password_hash: passwordHash, email},
+            {headers: {Authorization: `Bearer ${serviceToken}`}},
         );
 
-        let redir: string | undefined;
-        if (redirect_uri && (await kv.isAllowedRedirect(redirect_uri))) {
-            redir = redirect_uri;
-        }
+        const createdUser = responseBody.data;
 
-        const emailToken = await signUserAccessToken({
-            userId: String(created.id),
+        const emailVerificationToken = await signUserAccessToken({
+            userId: String(createdUser.id),
             scope: "email_verify",
             ttlSec: 24 * 3600,
-            extra: redir ? {redir} : undefined,
         });
 
-        const link = JWT_ISSUER
-            ? appendQuery(`${JWT_ISSUER}/verify-email`, {token: emailToken})
+        const verificationLink = JWT_ISSUER
+            ? appendQueryParameters(`${JWT_ISSUER}/verify-email`, {token: emailVerificationToken})
             : null;
 
         await mailer.sendMail({
             to: email,
             subject: "Verify your email",
-            text: link
-                ? `Click to verify: ${link}`
-                : `Your verification token: ${emailToken}`,
+            text: verificationLink
+                ? `Click to verify: ${verificationLink}`
+                : `Your verification token: ${emailVerificationToken}`,
         });
 
-        res
-        .status(201)
-        .send("User created. If the email is valid, a verification link was sent.");
-    } catch (err: any) {
-        res.status(500).send(err.message);
+        res.status(201).send("User created. If the email is valid, a verification link was sent.");
+    } catch (error: any) {
+        res.status(500).send(error.message);
     }
 });
 
@@ -101,282 +83,189 @@ router.get("/verify-email", async (req: Request, res: Response) => {
     try {
         const {payload} = await verifyToken(token);
         if (payload.scope !== "email_verify") {
-            throw new Error("Wrong token type");
+            throw new Error("Incorrect token type.");
         }
 
-        const svc = await signServiceToken({scope: "users:update"});
+        const serviceToken = await signServiceToken({scope: "users:update"});
         await axios.patch(
             `${DB_SERVICE_API_URL}/users/${payload.sub}`,
             {verified: true, verified_at: new Date().toISOString()},
-            {headers: {Authorization: `Bearer ${svc}`}},
+            {headers: {Authorization: `Bearer ${serviceToken}`}},
         );
 
-        const redir = (payload as any).redir as string | undefined;
-        if (redir && (await kv.isAllowedRedirect(redir))) {
-            return res.redirect(302, appendQuery(redir, {status: "verified"}));
-        }
-        res.send("Email verified.");
-    } catch {
+        res.send("Email successfully verified.");
+    } catch (error) {
         res.status(400).send("Invalid or expired verification link.");
     }
 });
 
-router.post("/forgot-password",
-    resetLimiter,
-    async (req: Request, res: Response) => {
-        const {email, redirect_uri} = req.body;
-        try {
-            const svc = await signServiceToken({scope: "users:read"});
-            const {data: user} = await axios.get(
-                `${DB_SERVICE_BASE_URL}/internal/auth/users/email/${encodeURIComponent(
-                    email,
-                )}`,
-                {headers: {Authorization: `Bearer ${svc}`}},
-            );
+router.post("/forgot-password", resetLimiter, async (req: Request, res: Response) => {
+    const {email, redirect_uri} = req.body;
+    try {
+        const serviceToken = await signServiceToken({scope: "users:read"});
+        const {data: responseBody} = await axios.get(
+            `${DB_SERVICE_API_URL}/users/email/${encodeURIComponent(email)}`,
+            {headers: {Authorization: `Bearer ${serviceToken}`}},
+        );
 
-            const resetToken = await signUserAccessToken({
-                userId: String(user.id),
-                scope: "password_reset",
-                ttlSec: 3600,
-            });
+        const userRecord = responseBody.data;
 
-            let bodyText = `Your password reset token: ${resetToken}`;
-            if (redirect_uri && (await kv.isAllowedRedirect(redirect_uri))) {
-                const link = appendQuery(redirect_uri, {token: resetToken});
-                bodyText = `Reset your password: ${link}`;
-            }
-            await mailer.sendMail({
-                to: email,
-                subject: "Reset your password",
-                text: bodyText,
-            });
-        } catch {
-        }
-        res.send("If that email exists, we’ve sent reset instructions.");
-    },
-);
+        const passwordResetToken = await signUserAccessToken({
+            userId: String(userRecord.id),
+            scope: "password_reset",
+            ttlSec: 3600,
+        });
 
-router.post("/reset-password",
-    resetLimiter,
-    async (req: Request, res: Response) => {
-        const {token, newPassword} = req.body;
-        if (!token || !newPassword) {
-            return res.status(400).send("Missing fields");
-        }
-        try {
-            const {payload} = await verifyToken(token);
-            if (payload.scope !== "password_reset") {
-                throw new Error("Wrong token type");
-            }
-
-            const hash = await bcrypt.hash(newPassword, 10);
-            const svc = await signServiceToken({scope: "users:update"});
-            await axios.patch(
-                `${DB_SERVICE_API_URL}/users/${payload.sub}`,
-                {password_hash: hash},
-                {headers: {Authorization: `Bearer ${svc}`}},
-            );
-
-            const userId = String(payload.sub);
-            const sessions = await kv.listUserSessions(userId);
-            for (const oldJti of sessions) {
-                const rk = `refresh:${oldJti}`;
-                const ttl = await redis.ttl(rk);
-                const exp =
-                    Math.floor(Date.now() / 1000) + (ttl > 0 ? ttl : 0);
-                await revokeToken(
-                    oldJti,
-                    exp || Math.floor(Date.now() / 1000) + 24 * 3600,
-                );
-                await redis.del(rk);
-            }
-            await kv.clearUserSessions(userId);
-
-            res.send("Password has been reset.");
-        } catch {
-            res.status(400).send("Invalid or expired reset link.");
-        }
-    },
-);
-
-router.post("/login", loginIpLimiter, loginAccountLimiter,
-    async (req, res) => {
-        const {username, password} = req.body;
-        if (!username || !password) {
-            return res.status(400).json({message: "Missing credentials"});
+        let emailBodyText = `Your password reset token: ${passwordResetToken}`;
+        if (redirect_uri) {
+            const resetLink = appendQueryParameters(redirect_uri, {token: passwordResetToken});
+            emailBodyText = `Reset your password: ${resetLink}`;
         }
 
-        try {
-            const svc = await signServiceToken({scope: "user.verify:password"});
-            const {data: verify} = await axios.post(
-                `${DB_SERVICE_BASE_URL}/internal/auth/verify-password`,
-                {usernameOrEmail: username, password},
-                {headers: {Authorization: `Bearer ${svc}`}},
-            );
+        await mailer.sendMail({
+            to: email,
+            subject: "Reset your password",
+            text: emailBodyText,
+        });
+    } catch (error) {}
+    res.send("If that email exists in our system, we have sent reset instructions.");
+});
 
-            if (!verify?.ok || !verify?.user) {
-                throw new Error("Invalid");
-            }
-
-            const user = verify.user as {
-                id: string | number;
-                username: string;
-                email: string;
-                roles: any[];
-                verified?: boolean;
-            };
-
-            if (user.verified === false) {
-                return res.status(403).send("Email not verified.");
-            }
-
-            const accessToken = await signUserAccessToken({
-                userId: String(user.id),
-                roles: user.roles,
-                preferred_username: user.username,
-                email: user.email,
-            });
-
-            const jti = crypto.randomUUID();
-            const {token: refreshToken} = await signRefreshToken({
-                userId: String(user.id),
-                sessionId: jti,
-                jti,
-                carry: {
-                    roles: user.roles,
-                    preferred_username: user.username,
-                    email: user.email,
-                },
-            });
-            await redis.set(`refresh:${jti}`, "1", {EX: 7 * 24 * 3600});
-            await kv.addUserSession(String(user.id), jti);
-
-            res.cookie("refresh_token", refreshCookieOpts ? refreshToken : "", refreshCookieOpts)
-            .cookie("access_token", accessToken, accessCookieOpts)
-            .json({accessToken});
-        } catch {
-            res.status(401).json({message: "Invalid username or password."});
-        }
-    },
-);
-
-router.post("/refresh", refreshLimiter, async (req: Request, res: Response) => {
-    const token = req.cookies["refresh_token"];
-    if (!token) {
-        return res.status(401).send("No refresh token.");
+router.post("/reset-password", resetLimiter, async (req: Request, res: Response) => {
+    const {token, newPassword} = req.body;
+    if (!token || !newPassword) {
+        return res.status(400).send("Missing required fields.");
     }
 
     try {
-        const {payload} = await verifyToken(token, "refresh");
-        const {jti, sub, exp} = payload as any;
-        if (!jti || !sub) {
-            throw new Error("Malformed");
-        }
-        if (!(await redis.get(`refresh:${jti}`))) {
-            throw new Error("Missing allow key");
-        }
-        if (await isRevoked(jti)) {
-            throw new Error("Revoked");
+        const {payload} = await verifyToken(token);
+        if (payload.scope !== "password_reset") {
+            throw new Error("Incorrect token type.");
         }
 
-        await revokeToken(jti, exp as number);
-        await redis.del(`refresh:${jti}`);
-        await kv.removeUserSession(String(sub), jti);
+        const newPasswordHash = await bcrypt.hash(newPassword, 10);
+        const serviceToken = await signServiceToken({scope: "users:update"});
 
-        const newJti = crypto.randomUUID();
-        const {token: newRefresh} = await signRefreshToken({
-            userId: String(sub),
-            sessionId: newJti,
-            jti: newJti,
+        await axios.patch(
+            `${DB_SERVICE_API_URL}/users/${payload.sub}`,
+            {password_hash: newPasswordHash},
+            {headers: {Authorization: `Bearer ${serviceToken}`}},
+        );
+
+        res.send("Password has been successfully reset.");
+    } catch (error) {
+        res.status(400).send("Invalid or expired reset link.");
+    }
+});
+
+router.post("/login", loginIpLimiter, loginAccountLimiter, async (req: Request, res: Response) => {
+    const {email, password} = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({message: "Missing credentials."});
+    }
+
+    try {
+        const serviceToken = await signServiceToken({scope: "users:read"});
+
+        const {data: responseBody} = await axios.get(
+            `${DB_SERVICE_API_URL}/users/email/${encodeURIComponent(email)}`,
+            {headers: {Authorization: `Bearer ${serviceToken}`}},
+        );
+
+        const userRecord = responseBody.data;
+
+        if (!userRecord || !userRecord.password_hash) {
+            throw new Error("Invalid credentials.");
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, userRecord.password_hash);
+        if (!isPasswordValid) {
+            throw new Error("Invalid credentials.");
+        }
+
+        if (userRecord.verified === false) {
+            return res.status(403).send("Email address is not verified.");
+        }
+
+        const accessToken = await signUserAccessToken({
+            userId: String(userRecord.id),
+            roles: userRecord.roles,
+            preferred_username: userRecord.username,
+            email: userRecord.email,
+        });
+
+        const {token: refreshToken} = await signRefreshToken({
+            userId: String(userRecord.id),
+            sessionId: crypto.randomUUID(),
             carry: {
-                roles: (payload as any).roles,
-                preferred_username: (payload as any).preferred_username,
-                email: (payload as any).email,
+                roles: userRecord.roles,
+                preferred_username: userRecord.username,
+                email: userRecord.email,
             },
         });
-        await redis.set(`refresh:${newJti}`, "1", {EX: 7 * 24 * 3600});
-        await kv.addUserSession(String(sub), newJti);
 
-        const newAccess = await signUserAccessToken({
-            userId: String(sub),
+        res.cookie("refresh_token", refreshToken, cookieOptions)
+        .cookie("access_token", accessToken, cookieOptions)
+        .json({accessToken});
+    } catch (error: any) {
+        console.log("=== LOGIN ERROR ===");
+        if (error.response) {
+            console.log("DB Service Status:", error.response.status);
+            console.log("DB Service Data:", error.response.data);
+        } else {
+            console.log("Error Message:", error.message);
+        }
+
+        res.status(401).json({message: "Invalid email or password."});
+    }
+});
+
+router.post("/refresh", refreshLimiter, async (req: Request, res: Response) => {
+    const existingRefreshToken = req.cookies["refresh_token"];
+    if (!existingRefreshToken) {
+        return res.status(401).send("No refresh token provided.");
+    }
+
+    try {
+        const {payload} = await verifyToken(existingRefreshToken, "refresh");
+
+        if (!payload.sub) {
+            throw new Error("Malformed token payload.");
+        }
+
+        const newAccessToken = await signUserAccessToken({
+            userId: String(payload.sub),
             roles: (payload as any).roles,
             preferred_username: (payload as any).preferred_username,
             email: (payload as any).email,
         });
 
-        res
-        .cookie("refresh_token", refreshCookieOpts ? newRefresh : "", refreshCookieOpts)
-        .cookie("access_token", newAccess, accessCookieOpts)
-        .json({accessToken: newAccess});
-    } catch {
+        res.cookie("access_token", newAccessToken, cookieOptions)
+        .json({accessToken: newAccessToken});
+    } catch (error) {
         res.status(401).send("Invalid or expired refresh token.");
     }
 });
 
 router.post("/logout", async (req: Request, res: Response) => {
-    const token = req.cookies["refresh_token"];
-    if (token) {
-        try {
-            const {payload} = await verifyToken(token, "refresh");
-            const jti = (payload as any).jti as string;
-            const exp = (payload as any).exp as number;
-            const uid = String(payload.sub);
-            await revokeToken(jti, exp);
-            await redis.del(`refresh:${jti}`);
-            await kv.removeUserSession(uid, jti);
-        } catch {
-
-        }
-    }
-    res
-    .clearCookie("refresh_token", {path: "/", domain: COOKIE_DOMAIN})
-    .send("Logged out.");
+    res.clearCookie("refresh_token", {path: "/", domain: COOKIE_DOMAIN})
+    .clearCookie("access_token", {path: "/", domain: COOKIE_DOMAIN})
+    .send("Successfully logged out.");
 });
 
 router.get("/verify", requireAuth(), async (req: AuthRequest, res: Response) => {
-    const payload: any = req.user;
-    if (payload?.jti && (await isRevoked(payload.jti as string))) {
-        return res.status(401).json({message: "Invalid or expired token."});
-    }
-    res.json({user: payload});
+    const authenticatedUser = req.user;
+    res.json({user: authenticatedUser});
 });
 
 router.get("/userinfo", requireAuth(), (req: AuthRequest, res: Response) => {
-    const u: any = req.user;
+    const authenticatedUser: any = req.user;
     res.json({
-        sub: u.sub,
-        preferred_username: u.preferred_username,
-        roles: u.roles,
-        email: u.email,
-    });
-});
-
-router.get("/.well-known/jwks.json", async (_req: Request, res: Response) => {
-    try {
-        let jwks = await kv.getJWKS();
-        if (!jwks) {
-            jwks = await getJWKS();
-            await kv.setJWKS(jwks, 3600);
-        }
-        res.json(jwks);
-    } catch {
-        res.status(500).send("JWKS unavailable");
-    }
-});
-
-router.get("/.well-known/openid-configuration", (_req: Request, res: Response) => {
-    if (!JWT_ISSUER) {
-        return res.status(500).send("Issuer not configured");
-    }
-    res.json({
-        issuer: JWT_ISSUER,
-        jwks_uri: `${JWT_ISSUER}/.well-known/jwks.json`,
-        authorization_endpoint: `${JWT_ISSUER}/authorize`,
-        token_endpoint: `${JWT_ISSUER}/token`,
-        userinfo_endpoint: `${JWT_ISSUER}/userinfo`,
-        response_types_supported: ["code", "token"],
-        subject_types_supported: ["public"],
-        id_token_signing_alg_values_supported: ["RS256"],
+        sub: authenticatedUser.sub,
+        preferred_username: authenticatedUser.preferred_username,
+        roles: authenticatedUser.roles,
+        email: authenticatedUser.email,
     });
 });
 

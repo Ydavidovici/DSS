@@ -1,147 +1,136 @@
-// src/modules/users/user.controller.ts
-import { z } from 'zod';
-import bcrypt from 'bcryptjs';
-import {
-    createUser,
-    getByUsername as svcGetByUsername,
-    getByEmail as svcGetByEmail,
-    updateUser,
-    softDeleteUser,
-    getRawByUsername,
-    getRawByEmail,
-} from './user.service';
-import { FastifyReply, FastifyRequest } from 'fastify';
+import {Request, Response} from "express";
+import * as userService from "./user.service";
 
-const usernameRegex = /^[a-zA-Z0-9_]{3,32}$/;
+export const createUser = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const {first_name, last_name, email, password_hash} = req.body;
 
-const createSchema = z.object({
-    username: z.string().regex(usernameRegex, '3–32 word chars/underscore').max(32),
-    email: z.string().email().max(254),
-    password: z.string().min(8).max(200).optional(),
-    password_hash: z.string().min(20).max(255).optional(),
-    verified: z.boolean().optional(),
-    verified_at: z.string().datetime().optional(),
-    roles: z.array(z.unknown()).optional(),
-})
-    .refine(b => !!b.password || !!b.password_hash, { message: 'password or password_hash required' })
-    .refine(b => !(b.password && b.password_hash), { message: 'provide only one of password or password_hash' });
+        if (!email || !password_hash) {
+            res.status(400).json({
+                error: {code: "VALIDATION_ERROR", message: "Missing email or password_hash"},
+            });
+            return;
+        }
 
-const updateSchema = z.object({
-    verified: z.boolean().optional(),
-    verified_at: z.string().datetime().optional(),
-    password: z.string().min(8).max(200).optional(),
-    password_hash: z.string().min(20).max(255).optional(),
-    roles: z.array(z.unknown()).optional(),
-})
-    .refine(b => !(b.password && b.password_hash), { message: 'provide only one of password or password_hash' })
-    .refine(d => Object.keys(d).length > 0, 'Provide at least one field');
-
-const idParams = z.object({
-    // support UUID or numeric string ids (normalize to string)
-    id: z.union([z.string().uuid(), z.string().regex(/^\d+$/)]).transform(String),
-});
-
-const usernameParams = z.object({ username: z.string().regex(usernameRegex) });
-const emailParams = z.object({ email: z.string().email().max(254) });
-
-const verifyBody = z.object({
-    usernameOrEmail: z.string().min(3).max(254),
-    password: z.string().min(8).max(200),
-});
-
-const sanitize = <T extends Record<string, any> | null | undefined>(u: T): T => {
-    if (u && typeof u === 'object') delete (u as any).password_hash;
-    return u;
-};
-
-const handleUniqueConflict = (e: any, reply: FastifyReply) => {
-    if (e && (e.code === '23505' || e.constraint?.includes('unique'))) {
-        return reply.code(409).send({
-            error: { code: 'CONFLICT', message: 'Username or email already exists' },
+        const newUser = await userService.createUser({
+            first_name,
+            last_name,
+            email,
+            password_hash,
         });
+
+        res.status(201).json({data: newUser});
+    } catch (error: any) {
+        if (error.code === "23505") {
+            res.status(409).json({
+                error: {code: "CONFLICT", message: "User with this email already exists"},
+            });
+            return;
+        }
+
+        throw error;
     }
-    throw e;
 };
 
-export const UsersController = {
-    // ───────────────────────────────
-    // Writes (service-to-service)
-    create: async (req: FastifyRequest, reply: FastifyReply) => {
-        try {
-            const body = createSchema.parse(req.body);
-            const user = await createUser(body); // service hashes if only password provided
-            return reply.code(201).send(sanitize(user));
-        } catch (e: any) {
-            return handleUniqueConflict(e, reply);
+export const getUserById = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const {id} = req.params;
+        if (!id || typeof id !== "string") {
+            res.status(400).json({error: {code: "VALIDATION_ERROR", message: "Valid ID parameter is required"}});
+            return;
         }
-    },
 
-    update: async (req: FastifyRequest, reply: FastifyReply) => {
-        try {
-            const params = idParams.parse(req.params);
-            const body = updateSchema.parse(req.body);
-            const user = await updateUser(params.id, body); // service hashes if only password provided
-            if (!user) return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'User not found' } });
-            return reply.send(sanitize(user));
-        } catch (e: any) {
-            return handleUniqueConflict(e, reply);
+
+        const user = await userService.getUserById(id);
+
+        if (!user) {
+            res.status(404).json({error: {code: "NOT_FOUND", message: "User not found"}});
+            return;
         }
-    },
 
-    remove: async (req: FastifyRequest, reply: FastifyReply) => {
-        const params = idParams.parse(req.params);
-        const ok = await softDeleteUser(params.id);
-        if (!ok) return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'User not found' } });
-        return reply.code(204).send();
-    },
+        res.status(200).json({data: user});
+    } catch (error) {
+        throw error;
+    }
+};
 
-    // ───────────────────────────────
-    // Internal (service-to-service) sanitized reads
-    internalGetByUsername: async (req: FastifyRequest, reply: FastifyReply) => {
-        const { username } = usernameParams.parse(req.params);
-        const user = await svcGetByUsername(username);
-        if (!user) return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'User not found' } });
-        return reply.send(sanitize(user));
-    },
+export const getUserByEmail = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const rawEmail = req.params.email;
 
-    internalGetByEmail: async (req: FastifyRequest, reply: FastifyReply) => {
-        const { email } = emailParams.parse(req.params);
-        const user = await svcGetByEmail(email);
-        if (!user) return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'User not found' } });
-        return reply.send(sanitize(user));
-    },
+        if (!rawEmail || typeof rawEmail !== "string") {
+            res.status(400).json({
+                error: {code: "VALIDATION_ERROR", message: "Valid email parameter is required"},
+            });
+            return;
+        }
 
-    // ───────────────────────────────
-    // Internal password verification (no hash leaves this service)
-    internalVerifyPassword: async (req: FastifyRequest, reply: FastifyReply) => {
-        const { usernameOrEmail, password } = verifyBody.parse(req.body);
+        const email = decodeURIComponent(rawEmail);
 
-        const lookUpRaw =
-            usernameOrEmail.includes('@') ? getRawByEmail : getRawByUsername;
+        const user = await userService.getUserByEmail(email);
 
-        const row = await lookUpRaw(usernameOrEmail);
-        // Use 401 for both not found and bad password to avoid enumeration
-        if (!row) return reply.code(401).send({ ok: false });
+        if (!user) {
+            res.status(404).json({error: {code: "NOT_FOUND", message: "User not found"}});
+            return;
+        }
 
-        const ok = await bcrypt.compare(password, row.password_hash);
-        if (!ok) return reply.code(401).send({ ok: false });
+        res.status(200).json({data: user});
+    } catch (error) {
+        throw error;
+    }
+};
 
-        return reply.send({ ok: true, user: sanitize({ ...row }) });
-    },
+export const updateUser = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const {id} = req.params;
 
-    // ───────────────────────────────
-    // (Optional) If you keep public reads, keep these and gate them with end-user auth in routes.
-    getByUsername: async (req: FastifyRequest, reply: FastifyReply) => {
-        const params = usernameParams.parse(req.params);
-        const user = await svcGetByUsername(params.username);
-        if (!user) return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'User not found' } });
-        return reply.send(sanitize(user));
-    },
+        if (!id || typeof id !== "string") {
+            res.status(400).json({error: {code: "VALIDATION_ERROR", message: "Valid ID parameter is required"}});
+            return;
+        }
 
-    getByEmail: async (req: FastifyRequest, reply: FastifyReply) => {
-        const params = emailParams.parse(req.params);
-        const user = await svcGetByEmail(params.email);
-        if (!user) return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'User not found' } });
-        return reply.send(sanitize(user));
-    },
+        const updates = req.body;
+
+        delete updates.id;
+
+        if (Object.keys(updates).length === 0) {
+            res.status(400).json({
+                error: {code: "VALIDATION_ERROR", message: "No valid fields provided for update"},
+            });
+            return;
+        }
+
+        const updatedUser = await userService.updateUser(id, updates);
+
+        if (!updatedUser) {
+            res.status(404).json({error: {code: "NOT_FOUND", message: "User not found"}});
+            return;
+        }
+
+        res.status(200).json({data: updatedUser});
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const deleteUser = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const {id} = req.params;
+
+        if (!id || typeof id !== "string") {
+            res.status(400).json({error: {code: "VALIDATION_ERROR", message: "Valid ID parameter is required"}});
+            return;
+        }
+
+        const wasDeleted = await userService.deleteUser(id);
+
+        if (!wasDeleted) {
+            res.status(404).json({error: {code: "NOT_FOUND", message: "User not found"}});
+            return;
+        }
+
+        res.status(204).send();
+    } catch (error) {
+        throw error;
+    }
 };
