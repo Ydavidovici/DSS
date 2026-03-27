@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  postgres:
+    restart: always
+
+  db-service:
+    restart: always
+
+  auth-service:
+    restart: always
+    ports:
+      - "4000:4000"

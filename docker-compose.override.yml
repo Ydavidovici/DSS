@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+
+  db-service:
+    ports:
+      - "4001:4001"
+    env_file:
+      - ./apps/db-service/.env
+    volumes:
+      - ./apps/db-service:/app
+      - /app/node_modules
+    command: npm run dev
+
+  auth-service:
+    ports:
+      - "4000:4000"
+    env_file:
+      - ./apps/auth-service/.env
+    volumes:
+      - ./apps/auth-service:/app
+      - /app/node_modules
+    command: npm run dev
