@@ -16,6 +16,7 @@ services:
       context: ./apps/db-service
       dockerfile: Dockerfile
     container_name: dss-db-service
+    image: ydavidovici/dss-db-service:latest
     environment:
       - DATABASE_URL=postgres://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-dss_database}
     depends_on:
@@ -26,6 +27,7 @@ services:
       context: ./apps/auth-service
       dockerfile: Dockerfile
     container_name: dss-auth-service
+    image: ydavidovici/dss-auth-service:latest
     depends_on:
       - db-service
 
