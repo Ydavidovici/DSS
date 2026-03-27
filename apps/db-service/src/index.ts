@@ -1,49 +1,73 @@
-// src/index.ts
-import 'dotenv/config';
-import Fastify from 'fastify';
-import fastifyCors from '@fastify/cors';
-import pino from 'pino';
+import "dotenv/config";
+import express, {Request, Response, NextFunction} from "express";
+import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import crypto from "crypto";
 
-import rateLimit from './plugins/rateLimit';
-import jwt from './plugins/jwt';
-import userRoutes from './modules/users/user.routes';
+import userRoutes from "./modules/users/user.routes";
+import {requireServiceToken} from "./middleware/requireServiceToken";
 
-const logger = pino({
-  level: process.env.LOG_LEVEL || 'info',
-  redact: {
-    paths: ['req.headers.authorization', 'req.headers.cookie', 'body.password', 'body.password_hash'],
-    censor: '***'
-  }
+const app = express();
+const PORT = Number(process.env.PORT || 4001);
+const HOST = process.env.HOST || "0.0.0.0";
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+    req.headers["x-request-id"] = req.headers["x-request-id"] || crypto.randomUUID();
+    res.setHeader("x-request-id", req.headers["x-request-id"]);
+    next();
 });
 
-const app = Fastify({
-  logger,
-  requestIdHeader: 'x-request-id',
-  genReqId: () => crypto.randomUUID()
+app.use(helmet());
+app.use(express.json());
+app.use(express.urlencoded({extended: false}));
+
+app.use(cors({
+    origin: process.env.CORS_ORIGIN || "*",
+    methods: ["GET", "POST", "PATCH", "DELETE"],
+}));
+
+app.use(rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {error: {code: "RATE_LIMITED", message: "Too many requests"}},
+}));
+
+app.get("/api/healthz", (_req: Request, res: Response) => {
+    res.json({ok: true});
 });
 
-await app.register(fastifyCors, {
-  origin: process.env.CORS_ORIGIN || '*',
-  methods: ['GET','POST','PATCH','DELETE']
+app.use("/api/v1/users", requireServiceToken, userRoutes);
+
+app.use((_req: Request, res: Response) => {
+    res.status(404).json({error: {code: "NOT_FOUND", message: "Route not found"}});
 });
 
-await app.register(rateLimit);
-await app.register(jwt);
+app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+    const status = err.status || err.httpCode || (err.validation ? 400 : 500);
+    const payload = err.public || (err.validation
+        ? {code: "VALIDATION_ERROR", message: "Invalid request", details: err.validation}
+        : {code: "INTERNAL_ERROR", message: "Unexpected error"});
 
-app.get('/healthz', async () => ({ ok: true }));
+    const safeBody = {...req.body};
+    if (safeBody.password) {
+        safeBody.password = "***";
+    }
+    if (safeBody.password_hash) {
+        safeBody.password_hash = "***";
+    }
 
-await app.register(userRoutes);
+    console.error(`[${req.headers["x-request-id"]}] Error:`, err.message);
+    if (status >= 500) {
+        console.error("Payload:", safeBody);
+        console.error(err.stack);
+    }
 
-app.setErrorHandler((err: any, req, reply) => {
-  const status = err.httpCode || (err.validation ? 400 : 500);
-  const payload = err.public ||
-    (err.validation ? { code: 'VALIDATION_ERROR', message: 'Invalid request', details: err.validation }
-      : { code: 'INTERNAL_ERROR', message: 'Unexpected error' });
-  req.log.error({ err }, 'request failed');
-  reply.code(status).send({ error: payload });
+    res.status(status).json({error: payload});
 });
 
-const port = Number(process.env.PORT || 4000);
-const host = process.env.HOST || '0.0.0.0';
-await app.listen({ host, port });
-app.log.info(`db-service listening on http://${host}:${port}`);
+app.listen(PORT, HOST, () => {
+    console.log(`[db-service] listening on http://${HOST}:${PORT}`);
+});

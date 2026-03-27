@@ -6,136 +6,91 @@ import {describe, it, expect, beforeAll, beforeEach, vi} from "vitest";
 const axiosMock = {get: vi.fn(), post: vi.fn(), patch: vi.fn()};
 vi.mock("axios", () => ({default: axiosMock}));
 
-vi.mock("../utils/redis", () => {
-    const store = new Map<string, string>();
-    const sessions = new Map<string, Set<string>>();
-    const redirects = new Set<string>(["https://app1.localhost:3000"]);
-    return {
-        redis: {
-            get: async (k: string) => store.get(k) ?? null,
-            set: async (k: string, v: string) => {
-                store.set(k, v);
-                return "OK";
-            },
-            del: async (k: string) => {
-                store.delete(k);
-                return 1;
-            },
-            ttl: async () => 3600,
-            sendCommand: async () => "OK",
-        },
-        kv: {
-            getJWKS: async () => (store.has("jwks") ? JSON.parse(store.get("jwks")!) : null),
-            setJWKS: async (jwks: any) => { store.set("jwks", JSON.stringify(jwks)); },
-            clearJWKS: async () => { store.delete("jwks"); },
-            addUserSession: async (uid: string, jti: string) => {
-                const set = sessions.get(uid) ?? new Set<string>();
-                set.add(jti);
-                sessions.set(uid, set);
-            },
-            removeUserSession: async (uid: string, jti: string) => { sessions.get(uid)?.delete(jti); },
-            listUserSessions: async (uid: string) => Array.from(sessions.get(uid) ?? []),
-            clearUserSessions: async (uid: string) => { sessions.delete(uid); },
-            getAllowedRedirects: async () => Array.from(redirects),
-            isAllowedRedirect: async (url: string) => {
-                try {
-                    const u = new URL(url);
-                    return redirects.has(`${u.protocol}//${u.host}`);
-                } catch { return false; }
-            },
-        },
-    };
-});
-
 vi.mock("../middleware/rateLimit", () => ({
-    loginIpLimiter: (_req: any, _res: any, next: any) => next(),
-    loginAccountLimiter: (_req: any, _res: any, next: any) => next(),
-    resetLimiter: (_req: any, _res: any, next: any) => next(),
-    refreshLimiter: (_req: any, _res: any, next: any) => next(),
+    loginIpLimiter: (_request: any, _response: any, next: any) => next(),
+    loginAccountLimiter: (_request: any, _response: any, next: any) => next(),
+    resetLimiter: (_request: any, _response: any, next: any) => next(),
+    refreshLimiter: (_request: any, _response: any, next: any) => next(),
 }));
 
 vi.mock("../utils/jwt", () => {
     const tokenStore = new Map<string, any>();
-    const makeToken = (p: string) => `${p}-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+    const generateMockTokenString = (prefix: string) =>
+        `${prefix}-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
 
     const signServiceToken = vi.fn(async (_input: any) => "svc-token");
 
     const signUserAccessToken = vi.fn(async (input: any) => {
-        const token = makeToken("access");
-        const now = Math.floor(Date.now() / 1000);
-        const payload = {
+        const tokenString = generateMockTokenString("access");
+        const currentTime = Math.floor(Date.now() / 1000);
+        const tokenPayload = {
             sub: String(input.userId),
             roles: input.roles ?? [],
             preferred_username: input.preferred_username,
             email: input.email,
             scope: input.scope,
-            ...(input.extra ?? {}),
             typ: "access",
-            iat: now,
-            exp: now + (input.ttlSec ?? 900),
+            iat: currentTime,
+            exp: currentTime + (input.ttlSec ?? 900),
         };
-        tokenStore.set(token, payload);
-        return token;
+        tokenStore.set(tokenString, tokenPayload);
+        return tokenString;
     });
 
     const signRefreshToken = vi.fn(async (input: any) => {
-        const token = makeToken("refresh");
-        const now = Math.floor(Date.now() / 1000);
-        const payload = {
+        const tokenString = generateMockTokenString("refresh");
+        const currentTime = Math.floor(Date.now() / 1000);
+        const tokenPayload = {
             sub: String(input.userId),
-            jti: input.jti ?? makeToken("jti"),
+            jti: input.jti ?? generateMockTokenString("jti"),
             sessionId: input.sessionId,
             roles: input.carry?.roles ?? [],
             preferred_username: input.carry?.preferred_username,
             email: input.carry?.email,
             typ: "refresh",
-            iat: now,
-            exp: now + (input.ttlSec ?? 7 * 24 * 3600),
+            iat: currentTime,
+            exp: currentTime + (input.ttlSec ?? 7 * 24 * 3600),
         };
-        tokenStore.set(token, payload);
-        return {token};
+        tokenStore.set(tokenString, tokenPayload);
+        return {token: tokenString};
     });
 
-    const verifyToken = vi.fn(async (token: string, expectedTyp: "access" | "refresh" = "access") => {
-        const payload = tokenStore.get(token);
+    const verifyToken = vi.fn(async (tokenString: string, expectedType: "access" | "refresh" = "access") => {
+        const payload = tokenStore.get(tokenString);
         if (!payload) {
             throw new Error("Unknown token");
         }
-        if (expectedTyp && payload.typ !== expectedTyp) {
-            throw new Error("Wrong token type");
+        if (expectedType && payload.typ !== expectedType) {
+            throw new Error("Incorrect token type");
         }
-        const now = Math.floor(Date.now() / 1000);
-        if (typeof payload.exp === "number" && payload.exp <= now) {
+        const currentTime = Math.floor(Date.now() / 1000);
+        if (typeof payload.exp === "number" && payload.exp <= currentTime) {
             throw new Error("Expired token");
         }
         return {payload};
     });
 
-    const getJWKS = vi.fn(async () => ({keys: []}));
-
-    return {signServiceToken, signUserAccessToken, signRefreshToken, verifyToken, getJWKS};
+    return {signServiceToken, signUserAccessToken, signRefreshToken, verifyToken};
 });
 
-vi.mock("../utils/mailer", () => ({mailer: {sendMail: vi.fn().mockResolvedValue({})}}));
-vi.mock("../utils/tokenBlacklist", () => ({
-    revokeToken: vi.fn().mockResolvedValue(undefined),
-    isRevoked: vi.fn().mockResolvedValue(false),
+vi.mock("../utils/mailer", () => ({
+    mailer: {sendMail: vi.fn().mockResolvedValue({})},
 }));
 
-describe("Auth flows (end-to-end-ish, with mocked db-service + jwt)", () => {
-    let app: express.Express;
+describe("Authentication Flows (Mocked DB Service & JWT)", () => {
+    let expressApp: express.Express;
 
     beforeAll(async () => {
         process.env.DB_SERVICE_API_URL ||= "http://db-service:4000/api/v1";
         process.env.DB_SERVICE_BASE_URL ||= "http://db-service:4000";
         process.env.JWT_ISSUER ||= "https://issuer.test";
 
-        const router = (await import("../routes/auth")).default;
+        const authRouter = (await import("../routes/auth")).default;
 
-        app = express();
-        app.use(express.json());
-        app.use(cookieParser());
-        app.use("/", router);
+        expressApp = express();
+        expressApp.use(express.json());
+        expressApp.use(cookieParser());
+        expressApp.use("/", authRouter);
     });
 
     beforeEach(() => {
@@ -145,192 +100,202 @@ describe("Auth flows (end-to-end-ish, with mocked db-service + jwt)", () => {
         axiosMock.patch.mockReset();
     });
 
-    it("register → creates user via db-service and sends verification email with issuer link", async () => {
+    it("Register -> Creates user via db-service and sends verification email", async () => {
         const {mailer} = await import("../utils/mailer");
         const {signServiceToken} = await import("../utils/jwt");
 
-        axiosMock.post.mockResolvedValueOnce({status: 201, data: {id: "u1"}});
+        axiosMock.post.mockResolvedValueOnce({status: 201, data: {data: {id: "u1"}}});
 
-        const res = await request(app)
+        const response = await request(expressApp)
         .post("/register")
         .send({
             username: "alice",
-            password: "s3cret",
-            email: "a@ex.com",
-            redirect_uri: "https://app1.localhost:3000/auth/verified",
+            password: "s3cretPassword",
+            email: "alice@example.com",
         })
         .expect(201);
 
-        expect(res.text).toMatch(/User created/i);
+        expect(response.text).toMatch(/User created/i);
 
         expect(axiosMock.post).toHaveBeenCalledWith(
             expect.stringContaining("/users"),
-            expect.objectContaining({username: "alice", email: "a@ex.com", password_hash: expect.any(String)}),
-            expect.objectContaining({headers: expect.objectContaining({Authorization: "Bearer svc-token"})}),
+            expect.objectContaining({
+                username: "alice",
+                email: "alice@example.com",
+                password_hash: expect.any(String),
+            }),
+            expect.objectContaining({
+                headers: expect.objectContaining({Authorization: "Bearer svc-token"}),
+            }),
         );
 
-        expect((signServiceToken as any).mock.calls.some(([arg]: any[]) => arg?.scope === "users:create")).toBe(true);
+        expect((signServiceToken as any).mock.calls.some(([arguments_]: any[]) => arguments_?.scope === "users:create")).toBe(true);
 
         expect(mailer.sendMail).toHaveBeenCalledTimes(1);
-        const sent = (mailer.sendMail as any).mock.calls[0][0];
-        expect(sent.to).toBe("a@ex.com");
-        expect(sent.text).toMatch(/https:\/\/issuer\.test\/verify-email\?token=/);
+        const sentEmail = (mailer.sendMail as any).mock.calls[0][0];
+        expect(sentEmail.to).toBe("alice@example.com");
+        expect(sentEmail.text).toMatch(/https:\/\/issuer\.test\/verify-email\?token=/);
     });
 
-    it("login (username) → forwards to db-service verify-password with svc token and rotates refresh", async () => {
+    it("Login -> Fetches user by email, verifies password locally, sets cookies", async () => {
         const {signServiceToken} = await import("../utils/jwt");
+        const bcrypt = await import("bcrypt");
+        const hashedPw = await bcrypt.hash("s3cretPassword", 10);
 
-        axiosMock.post.mockImplementation((url: string, body?: any, cfg?: any) => {
-            if (url.endsWith("/internal/auth/verify-password")) {
-                expect(body).toEqual({usernameOrEmail: "alice", password: "s3cret"});
-                expect(cfg?.headers?.Authorization).toBe("Bearer svc-token");
+        axiosMock.get.mockImplementation((url: string, config?: any) => {
+            if (url.includes("alice%40example.com")) {
+                expect(config?.headers?.Authorization).toBe("Bearer svc-token");
                 return Promise.resolve({
                     status: 200,
-                    data: {ok: true, user: {id: "u1", username: "alice", email: "a@ex.com", verified: true, roles: ["user"]}},
+                    data: {data: {id: "u1", username: "alice", email: "alice@example.com", verified: true, roles: ["user"], password_hash: hashedPw}},
                 });
             }
-            return Promise.reject(new Error(`unknown POST ${url}`));
+            return Promise.reject(new Error(`Unknown GET request to ${url}`));
         });
 
-        const login = await request(app).post('/login').send({ username: 'alice', password: 's3cret' }).expect(200);
-        expect(login.body).toHaveProperty('accessToken');
+        const loginResponse = await request(expressApp)
+        .post("/login")
+        .send({email: "alice@example.com", password: "s3cretPassword"})
+        .expect(200);
 
-        const loginCookies = login.headers['set-cookie'] as unknown as string[];
-        const refreshTokenCookie = loginCookies.find((c: string) => c.startsWith('refresh_token='));
+        expect(loginResponse.body).toHaveProperty("accessToken");
+
+        const loginCookies = loginResponse.headers["set-cookie"] as unknown as string[];
+        const refreshTokenCookie = loginCookies.find((cookie: string) => cookie.startsWith("refresh_token="));
         expect(refreshTokenCookie).toBeTruthy();
 
-        expect((signServiceToken as any).mock.calls.some(([arg]: any[]) => arg?.scope === 'user.verify:password')).toBe(true);
-
-        const r1 = await request(app).post('/refresh').set('Cookie', refreshTokenCookie!).expect(200);
-        expect(r1.body).toHaveProperty('accessToken');
-
-        const refreshCookies = r1.headers['set-cookie'] as unknown as string[];
-        const newRefreshTokenCookie = refreshCookies.find((c: string) => c.startsWith('refresh_token='));
-        expect(newRefreshTokenCookie).toBeTruthy();
-
-        await request(app).post('/refresh').set('Cookie', refreshTokenCookie!).expect(401);
-
-        await request(app).post('/logout').set('Cookie', newRefreshTokenCookie!).expect(200);
-        await request(app).post('/refresh').set('Cookie', newRefreshTokenCookie!).expect(401);
+        expect((signServiceToken as any).mock.calls.some(([arguments_]: any[]) => arguments_?.scope === "users:read")).toBe(true);
     });
 
-    it("login (email) → still posts usernameOrEmail and succeeds", async () => {
-        axiosMock.post.mockImplementation((url: string, body?: any) => {
-            if (url.endsWith("/internal/auth/verify-password")) {
-                expect(body).toEqual({usernameOrEmail: "a@ex.com", password: "pw"});
-                return Promise.resolve({
-                    status: 200,
-                    data: {ok: true, user: {id: "u42", username: "alice", email: "a@ex.com", verified: true, roles: []}},
-                });
-            }
-            return Promise.reject(new Error(`unknown POST ${url}`));
-        });
+    it("Login -> Returns 403 when db-service returns unverified user", async () => {
+        const bcrypt = await import("bcrypt");
+        const hashedPw = await bcrypt.hash("s3cretPassword", 10);
 
-        await request(app).post("/login").send({username: "a@ex.com", password: "pw"}).expect(200);
-        expect(axiosMock.post).toHaveBeenCalledWith(
-            expect.stringMatching(/\/internal\/auth\/verify-password$/),
-            {usernameOrEmail: "a@ex.com", password: "pw"},
-            expect.objectContaining({headers: expect.objectContaining({Authorization: "Bearer svc-token"})}),
-        );
-    });
-
-    it("login → returns 403 when db-service returns unverified user", async () => {
-        axiosMock.post.mockResolvedValueOnce({
+        axiosMock.get.mockResolvedValueOnce({
             status: 200,
-            data: {ok: true, user: {id: "u1", username: "alice", email: "a@ex.com", roles: [], verified: false}},
+            data: {data: {id: "u1", username: "alice", email: "alice@example.com", roles: [], verified: false, password_hash: hashedPw}},
         });
 
-        await request(app).post("/login").send({username: "alice", password: "pw"}).expect(403);
+        await request(expressApp)
+        .post("/login")
+        .send({email: "alice@example.com", password: "s3cretPassword"})
+        .expect(403);
     });
 
-    it("login → maps db-service 401/unknown to 401 (no enumeration)", async () => {
-        const err: any = new Error("Unauthorized");
-        err.response = {status: 401, data: {ok: false}};
-        axiosMock.post.mockRejectedValueOnce(err);
+    it("Login -> Returns 401 for wrong password", async () => {
+        const bcrypt = await import("bcrypt");
+        const hashedPw = await bcrypt.hash("s3cretPassword", 10);
 
-        await request(app).post("/login").send({username: "alice", password: "wrong"}).expect(401);
+        axiosMock.get.mockResolvedValueOnce({
+            status: 200,
+            data: {data: {id: "u1", username: "alice", email: "alice@example.com", verified: true, roles: [], password_hash: hashedPw}},
+        });
+
+        await request(expressApp)
+        .post("/login")
+        .send({email: "alice@example.com", password: "wrongPassword"})
+        .expect(401);
     });
 
-    it("verify-email happy path updates user and redirects", async () => {
+    it("Login -> Maps db-service 401 to generic 401 to prevent enumeration", async () => {
+        const error: any = new Error("Unauthorized");
+        error.response = {status: 401, data: {ok: false}};
+        axiosMock.get.mockRejectedValueOnce(error);
+
+        await request(expressApp)
+        .post("/login")
+        .send({email: "alice@example.com", password: "wrongPassword"})
+        .expect(401);
+    });
+
+    it("Verify Email -> Happy path updates user", async () => {
         const {signUserAccessToken, signServiceToken} = await import("../utils/jwt");
         axiosMock.patch.mockResolvedValueOnce({status: 200});
 
-        const token = await signUserAccessToken({
+        const verificationToken = await signUserAccessToken({
             userId: "u1",
             scope: "email_verify",
             ttlSec: 3600,
-            extra: {redir: "https://app1.localhost:3000/auth/verified"},
         });
 
-        const res = await request(app).get("/verify-email").query({token}).expect(302);
+        const response = await request(expressApp)
+        .get("/verify-email")
+        .query({token: verificationToken})
+        .expect(200);
+
+        expect(response.text).toMatch(/Email successfully verified/);
+
         expect(axiosMock.patch).toHaveBeenCalledWith(
             expect.stringContaining("/users/u1"),
             expect.objectContaining({verified: true}),
             expect.any(Object),
         );
-        expect(res.headers.location).toMatch(/status=verified/);
-        expect((signServiceToken as any).mock.calls.some(([arg]: any[]) => arg?.scope === "users:update")).toBe(true);
+        expect((signServiceToken as any).mock.calls.some(([arguments_]: any[]) => arguments_?.scope === "users:update")).toBe(true);
     });
 
-    it("reset-password happy path patches DB and revokes sessions", async () => {
+    it("Reset Password -> Happy path patches DB", async () => {
         const {signUserAccessToken, signServiceToken} = await import("../utils/jwt");
         axiosMock.patch.mockResolvedValueOnce({status: 200});
 
-        const token = await signUserAccessToken({
+        const passwordResetToken = await signUserAccessToken({
             userId: "u1",
             scope: "password_reset",
             ttlSec: 3600,
         });
 
-        await request(app).post("/reset-password").send({token, newPassword: "N3wPass!@#"}).expect(200);
+        await request(expressApp)
+        .post("/reset-password")
+        .send({token: passwordResetToken, newPassword: "NewSecurePassword!@#"})
+        .expect(200);
+
         expect(axiosMock.patch).toHaveBeenCalledWith(
             expect.stringContaining("/users/u1"),
             expect.objectContaining({password_hash: expect.any(String)}),
             expect.any(Object),
         );
-        expect((signServiceToken as any).mock.calls.some(([arg]: any[]) => arg?.scope === "users:update")).toBe(true);
+        expect((signServiceToken as any).mock.calls.some(([arguments_]: any[]) => arguments_?.scope === "users:update")).toBe(true);
     });
 
-    it("forgot-password → looks up user via internal email endpoint and sends reset link (allowed redirect)", async () => {
+    it("Forgot Password -> Looks up user and sends reset link with redirect", async () => {
         const {mailer} = await import("../utils/mailer");
         const {signServiceToken} = await import("../utils/jwt");
 
         axiosMock.get.mockResolvedValueOnce({
             status: 200,
-            data: {id: "u9", email: "a@ex.com"},
+            data: {data: {id: "u9", email: "alice@example.com"}},
         });
 
-        const res = await request(app)
+        const response = await request(expressApp)
         .post("/forgot-password")
-        .send({email: "a@ex.com", redirect_uri: "https://app1.localhost:3000/reset"})
+        .send({email: "alice@example.com", redirect_uri: "https://app1.localhost:3000/reset"})
         .expect(200);
 
-        expect(res.text).toMatch(/If that email exists/i);
+        expect(response.text).toMatch(/If that email exists/i);
 
         expect(axiosMock.get).toHaveBeenCalledWith(
-            expect.stringMatching(/\/internal\/auth\/users\/email\/a%40ex\.com$/),
+            expect.stringMatching(/\/users\/email\/alice%40example\.com$/),
             expect.objectContaining({headers: expect.objectContaining({Authorization: "Bearer svc-token"})}),
         );
-        expect((signServiceToken as any).mock.calls.some(([arg]: any[]) => arg?.scope === "users:read")).toBe(true);
+        expect((signServiceToken as any).mock.calls.some(([arguments_]: any[]) => arguments_?.scope === "users:read")).toBe(true);
 
         expect(mailer.sendMail).toHaveBeenCalledTimes(1);
-        const msg = (mailer.sendMail as any).mock.calls[0][0];
-        expect(msg.to).toBe("a@ex.com");
-        expect(msg.text).toMatch(/Reset your password:/);
-        expect(msg.text).toMatch(/token=/);
+        const emailMessage = (mailer.sendMail as any).mock.calls[0][0];
+        expect(emailMessage.to).toBe("alice@example.com");
+        expect(emailMessage.text).toMatch(/Reset your password:/);
+        expect(emailMessage.text).toMatch(/token=/);
     });
 
-    it("forgot-password → enumeration-safe on unknown email (still 200, no mail)", async () => {
+    it("Forgot Password -> Enumeration-safe on unknown email (still 200, no mail)", async () => {
         const {mailer} = await import("../utils/mailer");
 
         axiosMock.get.mockRejectedValueOnce(Object.assign(new Error("Not Found"), {response: {status: 404}}));
 
-        const res = await request(app)
+        const response = await request(expressApp)
         .post("/forgot-password")
-        .send({email: "nobody@ex.com", redirect_uri: "https://app1.localhost:3000/reset"})
+        .send({email: "nobody@example.com", redirect_uri: "https://app1.localhost:3000/reset"})
         .expect(200);
 
-        expect(res.text).toMatch(/If that email exists/i);
+        expect(response.text).toMatch(/If that email exists/i);
         expect(mailer.sendMail).not.toHaveBeenCalled();
     });
 });

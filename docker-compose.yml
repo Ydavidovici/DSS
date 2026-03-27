@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: dss-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: dss_database
+    ports:
+      - "5432:5432"
+    volumes:
+      - dss_postgres_data:/var/lib/postgresql/data
+
+  db-service:
+    build:
+      context: ./apps/db-service
+      dockerfile: Dockerfile
+    container_name: dss-db-service
+    restart: always
+    env_file:
+      - ./apps/db-service/.env
+    environment:
+      - DATABASE_URL=postgres://user:password@postgres:5432/dss_database
+    ports:
+      - "4001:4001"
+    depends_on:
+      - postgres
+
+  auth-service:
+    build:
+      context: ./apps/auth-service
+      dockerfile: Dockerfile
+    container_name: dss-auth-service
+    restart: always
+    env_file:
+      - ./apps/auth-service/.env
+    ports:
+      - "4000:4000"
+    depends_on:
+      - db-service
+
+volumes:
+  dss_postgres_data:

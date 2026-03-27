@@ -6,42 +6,27 @@ import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
 
 import authRouter from "./routes/auth";
-import {kv} from "./utils/redis";
 
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
 
 app.set("trust proxy", 1);
 
-const envOrigins = (process.env.CORS_ORIGINS || "")
+const allowedOrigins = (process.env.CORS_ORIGINS || "")
 .split(",")
-.map(s => s.trim())
+.map(url => url.trim())
 .filter(Boolean);
 
-const corsOptionsDelegate = async (req: express.Request, cb: (err: Error | null, options: CorsOptions) => void) => {
+const corsOptionsDelegate = (req: express.Request, callback: (err: Error | null, options: CorsOptions) => void) => {
     const originHeader = req.header("Origin");
+
     if (!originHeader) {
-        return cb(null, {origin: true, credentials: true});
+        return callback(null, {origin: true, credentials: true});
     }
 
-    let allowlist = envOrigins;
-    if (allowlist.length === 0) {
-        try {
-            allowlist = await kv.getAllowedRedirects();
-        } catch {
-        }
-    }
+    const isAllowed = allowedOrigins.includes(originHeader);
 
-    let isAllowed = false;
-    try {
-        const u = new URL(originHeader);
-        const originOnly = `${u.protocol}//${u.host}`;
-        isAllowed = allowlist.includes(originOnly);
-    } catch {
-        isAllowed = false;
-    }
-
-    cb(null, {
+    callback(null, {
         origin: isAllowed,
         credentials: true,
     });
@@ -51,6 +36,7 @@ app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({extended: false}));
 app.use(cookieParser());
+
 app.use(cors(corsOptionsDelegate));
 app.options("*", cors(corsOptionsDelegate));
 
@@ -63,11 +49,11 @@ app.use("/", authRouter);
 
 app.use((_req, res) => res.status(404).send("Not found"));
 
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((err: any,  _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error(err);
     res.status(500).send("Internal server error");
 });
 
 app.listen(PORT, () => {
-    console.log(`[auth-service] listening on :${PORT}`);
+    console.log(`[auth-service] listening on port :${PORT}`);
 });
