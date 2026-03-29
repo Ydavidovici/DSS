@@ -4,6 +4,8 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: dss-postgres
+    ports:
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
