@@ -12,6 +12,7 @@ services:
       - dss_postgres_data:/var/lib/postgresql/data
 
   db-service:
+    image: ydavidovici/dss-db-service:latest
     build:
       context: ./apps/db-service
       dockerfile: Dockerfile
@@ -22,6 +23,7 @@ services:
       - postgres
 
   auth-service:
+    image: ydavidovici/dss-auth-service:latest
     build:
       context: ./apps/auth-service
       dockerfile: Dockerfile
