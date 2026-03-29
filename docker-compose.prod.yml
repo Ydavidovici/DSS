@@ -9,5 +9,6 @@ services:
 
   auth-service:
     restart: always
-    ports:
-      - "4000:4000"
+
+  ds-frontend:
+    restart: always

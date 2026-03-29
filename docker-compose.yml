@@ -28,6 +28,9 @@ services:
       context: ./apps/auth-service
       dockerfile: Dockerfile
     container_name: dss-auth-service
+    environment:
+      - DB_SERVICE_API_URL=http://db-service:4001/api/v1
+      - DB_SERVICE_URL=http://db-service:4001
     depends_on:
       - db-service
 
@@ -38,6 +41,7 @@ services:
     environment:
       - NODE_ENV=production
       - AUTH_SERVICE_URL=http://auth-service:4000
+      - DB_SERVICE_URL=http://db-service:4001
     depends_on:
       - auth-service
 

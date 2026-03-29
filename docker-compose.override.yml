@@ -20,16 +20,11 @@ services:
       - "4000:4000"
     env_file:
       - ./apps/auth-service/.env
-    environment:
-      - DB_SERVICE_API_URL=http://db-service:4001/api/v1
-      - DB_SERVICE_URL=http://db-service:4001
     volumes:
       - ./apps/auth-service:/app
       - /app/node_modules
     command: bun run start
 
   ds-frontend:
-   ports:
-     - "3000:3000"
-   environment:
-     - AUTH_SERVICE_URL=http://auth-service:4000
+    ports:
+      - "3000:3000"
