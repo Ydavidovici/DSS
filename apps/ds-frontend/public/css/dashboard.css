@@ -1,0 +1,19 @@
+.health-checks {
+    margin: 20px 0;
+    padding: 15px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    width: fit-content;
+    background-color: #fefefe;
+}
+
+.health-checks h3 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    font-size: 1.2rem;
+}
+
+.health-checks p {
+    margin: 8px 0;
+    font-weight: 500;
+}

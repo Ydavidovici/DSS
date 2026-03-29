@@ -2,7 +2,7 @@
     "name": "auth-service",
     "version": "0.4.1",
     "scripts": {
-        "dev": "tsx watch src/index.ts",
+        "dev": "bun --watch src/index.ts",
         "start": "bun run src/index.ts",
         "typecheck": "tsc --noEmit",
         "build": "bun build src/index.ts --outdir ./dist --target node",
