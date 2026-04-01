@@ -1,231 +1,195 @@
-/**
- * Test setup and utilities
- * Provides mock data and helper functions for tests
- */
+import type {Candle, NormalizedCandle} from "../src/types/candle";
+import type {Signal} from "../src/types/signal";
+import type {Trade} from "../src/types/trade";
 
-import type { Candle, NormalizedCandle } from '../src/types/candle';
-import type { Signal } from '../src/types/signal';
-import type { Trade } from '../src/types/trade';
-
-/**
- * Generate mock candle data
- */
 export function generateMockCandles(
-  symbol: string,
-  count: number,
-  startPrice: number = 100,
-  trend: 'up' | 'down' | 'sideways' = 'sideways'
+    symbol: string,
+    candleCount: number,
+    startingPrice: number = 100,
+    priceTrend: "up" | "down" | "sideways" = "sideways",
 ): Candle[] {
-  const candles: Candle[] = [];
-  let price = startPrice;
-  const baseDate = new Date('2024-01-01');
+    const generatedCandles: Candle[] = [];
+    let currentPrice = startingPrice;
+    const baseDate = new Date("2024-01-01");
 
-  for (let i = 0; i < count; i++) {
-    const date = new Date(baseDate);
-    date.setDate(date.getDate() + i);
+    for (let index = 0; index < candleCount; index++) {
+        const candleDate = new Date(baseDate);
+        candleDate.setDate(candleDate.getDate() + index);
 
-    // Adjust price based on trend
-    if (trend === 'up') {
-      price += Math.random() * 2;
-    } else if (trend === 'down') {
-      price -= Math.random() * 2;
-    } else {
-      price += (Math.random() - 0.5) * 2;
+        if (priceTrend === "up") {
+            currentPrice += Math.random() * 2;
+        } else if (priceTrend === "down") {
+            currentPrice -= Math.random() * 2;
+        } else {
+            currentPrice += (Math.random() - 0.5) * 2;
+        }
+
+        const priceVolatility = currentPrice * 0.02;
+        const openingPrice = currentPrice + (Math.random() - 0.5) * priceVolatility;
+        const closingPrice = currentPrice + (Math.random() - 0.5) * priceVolatility;
+        const highPrice = Math.max(openingPrice, closingPrice) + Math.random() * priceVolatility;
+        const lowPrice = Math.min(openingPrice, closingPrice) - Math.random() * priceVolatility;
+
+        generatedCandles.push({
+            symbol,
+            timestamp: candleDate.toISOString(),
+            open: openingPrice,
+            high: highPrice,
+            low: lowPrice,
+            close: closingPrice,
+            volume: Math.floor(1000000 + Math.random() * 500000),
+            timeframe: "1d",
+        });
     }
 
-    const volatility = price * 0.02; // 2% daily volatility
-    const open = price + (Math.random() - 0.5) * volatility;
-    const close = price + (Math.random() - 0.5) * volatility;
-    const high = Math.max(open, close) + Math.random() * volatility;
-    const low = Math.min(open, close) - Math.random() * volatility;
-
-    candles.push({
-      symbol,
-      timestamp: date.toISOString(),
-      open,
-      high,
-      low,
-      close,
-      volume: Math.floor(1000000 + Math.random() * 500000),
-      timeframe: '1d',
-    });
-  }
-
-  return candles;
+    return generatedCandles;
 }
 
-/**
- * Generate mock normalized candles
- */
 export function generateMockNormalizedCandles(
-  symbol: string,
-  count: number,
-  startPrice: number = 100,
-  trend: 'up' | 'down' | 'sideways' = 'sideways'
+    symbol: string,
+    candleCount: number,
+    startingPrice: number = 100,
+    priceTrend: "up" | "down" | "sideways" = "sideways",
 ): NormalizedCandle[] {
-  const candles = generateMockCandles(symbol, count, startPrice, trend);
-  return candles.map((c) => ({
-    ...c,
-    timestamp: new Date(c.timestamp),
-  }));
+    const rawCandles = generateMockCandles(symbol, candleCount, startingPrice, priceTrend);
+    return rawCandles.map((individualCandle) => ({
+        ...individualCandle,
+        timestamp: new Date(individualCandle.timestamp),
+    }));
 }
 
-/**
- * Generate candles with specific pattern for testing crossovers
- * Creates data where the crossover happens at the very end of the series
- */
 export function generateCrossoverCandles(
-  symbol: string,
-  crossoverType: 'bullish' | 'bearish'
+    symbol: string,
+    crossoverType: "bullish" | "bearish",
 ): NormalizedCandle[] {
-  const candles: NormalizedCandle[] = [];
-  const baseDate = new Date('2024-01-01');
+    const generatedCandles: NormalizedCandle[] = [];
+    const baseDate = new Date("2024-01-01");
 
-  // Generate 60 candles to have enough data for MA calculation
-  // For a crossover to happen at the end:
-  // - Most candles are flat so fast MA ≈ slow MA
-  // - Last candle has a price change that tips fast MA across slow MA
-  for (let i = 0; i < 60; i++) {
-    const date = new Date(baseDate);
-    date.setDate(date.getDate() + i);
+    for (let index = 0; index < 60; index++) {
+        const candleDate = new Date(baseDate);
+        candleDate.setDate(candleDate.getDate() + index);
 
-    let close: number;
+        let closingPrice: number;
 
-    if (crossoverType === 'bullish') {
-      // Flat prices, with last candle spiking up
-      // This causes fast MA to cross above slow MA
-      if (i < 59) {
-        close = 100;
-      } else {
-        close = 110; // Spike on last candle
-      }
-    } else {
-      // Flat prices, with last candle dropping
-      // This causes fast MA to cross below slow MA
-      if (i < 59) {
-        close = 100;
-      } else {
-        close = 90; // Drop on last candle
-      }
+        if (crossoverType === "bullish") {
+            if (index < 59) {
+                closingPrice = 100;
+            } else {
+                closingPrice = 110;
+            }
+        } else {
+            if (index < 59) {
+                closingPrice = 100;
+            } else {
+                closingPrice = 90;
+            }
+        }
+
+        const priceVolatility = closingPrice * 0.01;
+        const openingPrice = closingPrice;
+        const highPrice = closingPrice + priceVolatility;
+        const lowPrice = closingPrice - priceVolatility;
+
+        generatedCandles.push({
+            symbol,
+            timestamp: candleDate,
+            open: openingPrice,
+            high: highPrice,
+            low: lowPrice,
+            close: closingPrice,
+            volume: 1000000,
+            timeframe: "1d",
+        });
     }
 
-    const volatility = close * 0.01;
-    const open = close;
-    const high = close + volatility;
-    const low = close - volatility;
-
-    candles.push({
-      symbol,
-      timestamp: date,
-      open,
-      high,
-      low,
-      close,
-      volume: 1000000,
-      timeframe: '1d',
-    });
-  }
-
-  return candles;
+    return generatedCandles;
 }
 
-/**
- * Generate mock signal
- */
 export function generateMockSignal(
-  symbol: string = 'AAPL',
-  type: 'buy' | 'sell' | 'hold' = 'buy'
+    symbol: string = "AAPL",
+    signalType: "buy" | "sell" | "hold" = "buy",
 ): Signal {
-  return {
-    symbol,
-    type,
-    timestamp: new Date().toISOString(),
-    strategy: 'moving_average_crossover',
-    strength: 0.75,
-    price: 150.0,
-    indicators: {
-      fastMA: type === 'buy' ? 151 : 149,
-      slowMA: 150,
-    },
-    reason: `Fast MA crossed ${type === 'buy' ? 'above' : 'below'} slow MA`,
-  };
+    return {
+        symbol,
+        type: signalType,
+        timestamp: new Date().toISOString(),
+        strategy: "moving_average_crossover",
+        strength: 0.75,
+        price: 150.0,
+        indicators: {
+            fastMA: signalType === "buy" ? 151 : 149,
+            slowMA: 150,
+        },
+        reason: `Fast MA crossed ${signalType === "buy" ? "above" : "below"} slow MA`,
+    };
 }
 
-/**
- * Generate mock trade
- */
 export function generateMockTrade(
-  symbol: string = 'AAPL',
-  side: 'buy' | 'sell' = 'buy'
+    symbol: string = "AAPL",
+    tradingSide: "buy" | "sell" = "buy",
 ): Trade {
-  return {
-    id: `trade-${Date.now()}`,
-    symbol,
-    side,
-    quantity: 10,
-    price: 150.0,
-    value: 1500.0,
-    timestamp: new Date().toISOString(),
-    orderType: 'market',
-    status: 'filled',
-    orderId: `order-${Date.now()}`,
-    strategy: 'moving_average_crossover',
-  };
+    const currentTimestamp = Date.now();
+    return {
+        id: `trade-${currentTimestamp}`,
+        symbol,
+        side: tradingSide,
+        quantity: 10,
+        price: 150.0,
+        value: 1500.0,
+        timestamp: new Date().toISOString(),
+        orderType: "market",
+        status: "filled",
+        orderId: `order-${currentTimestamp}`,
+        strategy: "moving_average_crossover",
+    };
 }
 
-/**
- * Mock environment variables for testing
- */
-export function setupTestEnv() {
-  process.env.APCA_API_KEY = 'test-key';
-  process.env.APCA_SECRET_KEY = 'test-secret';
-  process.env.APCA_PAPER = 'true';
-  process.env.DB_SERVICE_URL = 'http://localhost:3000/api';
-  process.env.FAST_MA_PERIOD = '10';
-  process.env.SLOW_MA_PERIOD = '50';
-  process.env.TIMEFRAME = '1d';
-  process.env.SYMBOLS = 'AAPL,SPY';
-  process.env.LOG_LEVEL = 'error'; // Suppress logs during tests
+export function setupTestEnvironment(): void {
+    process.env["APCA_API_KEY"] = "test-key";
+    process.env["APCA_SECRET_KEY"] = "test-secret";
+    process.env["APCA_PAPER"] = "true";
+    process.env["DB_SERVICE_URL"] = "http://localhost:3000/api";
+    process.env["FAST_MA_PERIOD"] = "10";
+    process.env["SLOW_MA_PERIOD"] = "50";
+    process.env["TIMEFRAME"] = "1d";
+    process.env["SYMBOLS"] = "AAPL,SPY";
+    process.env["LOG_LEVEL"] = "error";
 }
 
-/**
- * Clean up test environment
- */
-export function cleanupTestEnv() {
-  delete process.env.APCA_API_KEY;
-  delete process.env.APCA_SECRET_KEY;
-  delete process.env.APCA_PAPER;
-  delete process.env.DB_SERVICE_URL;
+export function cleanupTestEnvironment(): void {
+    delete process.env["APCA_API_KEY"];
+    delete process.env["APCA_SECRET_KEY"];
+    delete process.env["APCA_PAPER"];
+    delete process.env["DB_SERVICE_URL"];
+    delete process.env["FAST_MA_PERIOD"];
+    delete process.env["SLOW_MA_PERIOD"];
+    delete process.env["TIMEFRAME"];
+    delete process.env["SYMBOLS"];
+    delete process.env["LOG_LEVEL"];
 }
 
-/**
- * Assert arrays are approximately equal (for floating point comparisons)
- */
 export function assertArraysApproxEqual(
-  actual: number[],
-  expected: number[],
-  tolerance: number = 0.01
+    actualValues: number[],
+    expectedValues: number[],
+    toleranceLimit: number = 0.01,
 ): void {
-  if (actual.length !== expected.length) {
-    throw new Error(
-      `Array lengths differ: actual=${actual.length}, expected=${expected.length}`
-    );
-  }
-
-  for (let i = 0; i < actual.length; i++) {
-    const diff = Math.abs(actual[i] - expected[i]);
-    if (diff > tolerance) {
-      throw new Error(
-        `Values at index ${i} differ: actual=${actual[i]}, expected=${expected[i]}, diff=${diff}`
-      );
+    if (actualValues.length !== expectedValues.length) {
+        throw new Error(
+            `Array lengths differ: actual=${actualValues.length}, expected=${expectedValues.length}`,
+        );
     }
-  }
+
+    for (let index = 0; index < actualValues.length; index++) {
+        const priceDifference = Math.abs(actualValues[index] - expectedValues[index]);
+        if (priceDifference > toleranceLimit) {
+            throw new Error(
+                `Values at index ${index} differ: actual=${actualValues[index]}, expected=${expectedValues[index]}, difference=${priceDifference}`,
+            );
+        }
+    }
 }
 
-/**
- * Round number to fixed decimal places
- */
-export function round(value: number, decimals: number = 2): number {
-  const multiplier = Math.pow(10, decimals);
-  return Math.round(value * multiplier) / multiplier;
+export function round(numericValue: number, decimalPlaces: number = 2): number {
+    const roundingMultiplier = Math.pow(10, decimalPlaces);
+    return Math.round(numericValue * roundingMultiplier) / roundingMultiplier;
 }

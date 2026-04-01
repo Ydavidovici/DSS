@@ -1,22 +1,23 @@
 {
-  "name": "trading-bot",
-  "version": "1.0.0",
-  "description": "Moving average crossover trading bot using Bun, TypeScript, and Alpaca API",
-  "main": "src/index.ts",
-  "type": "module",
-  "scripts": {
-    "dev": "bun run src/index.ts",
-    "start": "bun run src/index.ts",
-    "type-check": "tsc --noEmit",
-    "test": "bun test",
-    "test:watch": "bun test --watch",
-    "test:coverage": "bun test --coverage"
-  },
-  "dependencies": {
-    "@alpacahq/alpaca-trade-api": "^3.0.0"
-  },
-  "devDependencies": {
-    "@types/bun": "latest",
-    "typescript": "^5.3.3"
-  }
+    "name": "trading-bot",
+    "version": "0.0.1",
+    "description": "Moving average crossover trading bot using Bun and Typescript",
+    "main": "src/index.ts",
+    "type": "module",
+    "scripts": {
+        "dev": "bun run src/index.ts",
+        "start": "bun run src/index.ts",
+        "build": "bun build ./src/index.ts --outdir ./dist --target bun",
+        "type-check": "tsc --noEmit",
+        "test": "bun test",
+        "test:watch": "bun test --watch",
+        "test:coverage": "bun test --coverage"
+    },
+    "dependencies": {
+        "@alpacahq/alpaca-trade-api": "^3.0.0"
+    },
+    "devDependencies": {
+        "@types/bun": "latest",
+        "typescript": "^5.3.3"
+    }
 }

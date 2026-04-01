@@ -1,223 +1,285 @@
-/**
- * Tests for technical indicators
- */
-
-import { describe, test, expect } from 'bun:test';
+import {describe, test, expect} from "bun:test";
 import {
-  calculateSMA,
-  calculateEMA,
-  extractClosePrices,
-  calculateMovingAverages,
-  detectCrossover,
-} from '../../src/strategy/indicators';
+    calculateSMA,
+    calculateEMA,
+    extractClosePrices,
+    calculateMovingAverages,
+    detectCrossover,
+    calculateRSI,
+    calculateBollingerBands,
+    calculateMACD,
+} from "../../src/strategy/indicators";
 import {
-  generateMockNormalizedCandles,
-  generateCrossoverCandles,
-  assertArraysApproxEqual,
-  round,
-} from '../setup';
+    generateMockNormalizedCandles,
+    generateCrossoverCandles,
+    assertArraysApproxEqual,
+    round,
+} from "../setup";
 
-describe('Technical Indicators', () => {
-  describe('calculateSMA', () => {
-    test('should calculate simple moving average correctly', () => {
-      const values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-      const period = 3;
+describe("Technical Indicators", () => {
+    describe("calculateSMA", () => {
+        test("should calculate simple moving average correctly", () => {
+            const priceValues = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+            const movingAveragePeriod = 3;
 
-      const sma = calculateSMA(values, period);
+            const simpleMovingAverageArray = calculateSMA(priceValues, movingAveragePeriod);
 
-      expect(sma.length).toBe(values.length - period + 1);
-      expect(sma[0]).toBe(2); // (1+2+3)/3 = 2
-      expect(sma[1]).toBe(3); // (2+3+4)/3 = 3
-      expect(sma[2]).toBe(4); // (3+4+5)/3 = 4
-      expect(sma[sma.length - 1]).toBe(9); // (8+9+10)/3 = 9
+            expect(simpleMovingAverageArray.length).toBe(priceValues.length - movingAveragePeriod + 1);
+            expect(simpleMovingAverageArray[0]).toBe(2);
+            expect(simpleMovingAverageArray[1]).toBe(3);
+            expect(simpleMovingAverageArray[2]).toBe(4);
+            expect(simpleMovingAverageArray[simpleMovingAverageArray.length - 1]).toBe(9);
+        });
+
+        test("should return empty array if insufficient data", () => {
+            const priceValues = [1, 2, 3];
+            const movingAveragePeriod = 5;
+
+            const simpleMovingAverageArray = calculateSMA(priceValues, movingAveragePeriod);
+
+            expect(simpleMovingAverageArray.length).toBe(0);
+        });
+
+        test("should handle period of 1", () => {
+            const priceValues = [1, 2, 3, 4, 5];
+            const movingAveragePeriod = 1;
+
+            const simpleMovingAverageArray = calculateSMA(priceValues, movingAveragePeriod);
+
+            expect(simpleMovingAverageArray.length).toBe(priceValues.length);
+            expect(simpleMovingAverageArray).toEqual(priceValues);
+        });
     });
 
-    test('should return empty array if insufficient data', () => {
-      const values = [1, 2, 3];
-      const period = 5;
+    describe("calculateEMA", () => {
+        test("should calculate exponential moving average correctly", () => {
+            const priceValues = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
+            const movingAveragePeriod = 3;
 
-      const sma = calculateSMA(values, period);
+            const exponentialMovingAverageArray = calculateEMA(priceValues, movingAveragePeriod);
 
-      expect(sma.length).toBe(0);
+            expect(exponentialMovingAverageArray.length).toBe(priceValues.length - movingAveragePeriod + 1);
+            expect(exponentialMovingAverageArray[0]).toBe(11);
+
+            const weightMultiplier = 2 / (movingAveragePeriod + 1);
+            const expectedExponentialMovingAverage = (13 - exponentialMovingAverageArray[0]) * weightMultiplier + exponentialMovingAverageArray[0];
+            expect(round(exponentialMovingAverageArray[1], 2)).toBe(round(expectedExponentialMovingAverage, 2));
+        });
+
+        test("should return empty array if insufficient data", () => {
+            const priceValues = [1, 2, 3];
+            const movingAveragePeriod = 5;
+
+            const exponentialMovingAverageArray = calculateEMA(priceValues, movingAveragePeriod);
+
+            expect(exponentialMovingAverageArray.length).toBe(0);
+        });
+
+        test("should give more weight to recent values than SMA", () => {
+            const priceValues = [10, 10, 10, 10, 10, 10, 10, 20];
+            const movingAveragePeriod = 5;
+
+            const simpleMovingAverageArray = calculateSMA(priceValues, movingAveragePeriod);
+            const exponentialMovingAverageArray = calculateEMA(priceValues, movingAveragePeriod);
+
+            const lastSimpleMovingAverage = simpleMovingAverageArray[simpleMovingAverageArray.length - 1];
+            const lastExponentialMovingAverage = exponentialMovingAverageArray[exponentialMovingAverageArray.length - 1];
+
+            expect(lastExponentialMovingAverage).toBeGreaterThan(lastSimpleMovingAverage);
+        });
     });
 
-    test('should handle period of 1', () => {
-      const values = [1, 2, 3, 4, 5];
-      const period = 1;
+    describe("extractClosePrices", () => {
+        test("should extract close prices from candles", () => {
+            const historicalCandles = generateMockNormalizedCandles("AAPL", 10, 100);
 
-      const sma = calculateSMA(values, period);
+            const closingPriceArray = extractClosePrices(historicalCandles);
 
-      expect(sma.length).toBe(values.length);
-      expect(sma).toEqual(values);
-    });
-  });
+            expect(closingPriceArray.length).toBe(10);
+            closingPriceArray.forEach((priceValue, priceIndex) => {
+                expect(priceValue).toBe(historicalCandles[priceIndex].close);
+            });
+        });
 
-  describe('calculateEMA', () => {
-    test('should calculate exponential moving average correctly', () => {
-      const values = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
-      const period = 3;
+        test("should handle empty array", () => {
+            const closingPriceArray = extractClosePrices([]);
 
-      const ema = calculateEMA(values, period);
-
-      expect(ema.length).toBe(values.length - period + 1);
-
-      // First EMA value should be SMA
-      expect(ema[0]).toBe(11); // (10+11+12)/3 = 11
-
-      // Subsequent values should be weighted
-      const multiplier = 2 / (period + 1);
-      const expectedEma1 = (13 - ema[0]) * multiplier + ema[0];
-      expect(round(ema[1], 2)).toBe(round(expectedEma1, 2));
+            expect(closingPriceArray.length).toBe(0);
+        });
     });
 
-    test('should return empty array if insufficient data', () => {
-      const values = [1, 2, 3];
-      const period = 5;
+    describe("calculateMovingAverages", () => {
+        test("should calculate both fast and slow MAs", () => {
+            const historicalCandles = generateMockNormalizedCandles("AAPL", 60, 100);
+            const fastPeriodLimit = 10;
+            const slowPeriodLimit = 50;
 
-      const ema = calculateEMA(values, period);
+            const {fastMA: fastMovingAverageArray, slowMA: slowMovingAverageArray} = calculateMovingAverages(
+                historicalCandles,
+                fastPeriodLimit,
+                slowPeriodLimit,
+                false,
+            );
 
-      expect(ema.length).toBe(0);
+            expect(fastMovingAverageArray.length).toBe(historicalCandles.length - fastPeriodLimit + 1);
+            expect(slowMovingAverageArray.length).toBe(historicalCandles.length - slowPeriodLimit + 1);
+        });
+
+        test("should use SMA by default", () => {
+            const historicalCandles = generateMockNormalizedCandles("AAPL", 20, 100);
+            const movingAveragePeriod = 5;
+
+            const {fastMA: fastMovingAverageArray} = calculateMovingAverages(historicalCandles, movingAveragePeriod, 10, false);
+
+            const closingPriceArray = extractClosePrices(historicalCandles);
+            const expectedSimpleMovingAverage = calculateSMA(closingPriceArray, movingAveragePeriod);
+
+            assertArraysApproxEqual(fastMovingAverageArray, expectedSimpleMovingAverage);
+        });
+
+        test("should use EMA when specified", () => {
+            const historicalCandles = generateMockNormalizedCandles("AAPL", 20, 100);
+            const movingAveragePeriod = 5;
+
+            const {fastMA: fastMovingAverageArray} = calculateMovingAverages(historicalCandles, movingAveragePeriod, 10, true);
+
+            const closingPriceArray = extractClosePrices(historicalCandles);
+            const expectedExponentialMovingAverage = calculateEMA(closingPriceArray, movingAveragePeriod);
+
+            assertArraysApproxEqual(fastMovingAverageArray, expectedExponentialMovingAverage);
+        });
     });
 
-    test('should give more weight to recent values than SMA', () => {
-      const values = [10, 10, 10, 10, 10, 10, 10, 20]; // Spike at end
-      const period = 5;
+    describe("detectCrossover", () => {
+        test("should indicate bullish position when fast average definitively crosses above slow average", () => {
+            const fastMovingAverageArray = [48, 49, 50, 52];
+            const slowMovingAverageArray = [50, 50, 50, 50];
 
-      const sma = calculateSMA(values, period);
-      const ema = calculateEMA(values, period);
+            const crossoverResult = detectCrossover(fastMovingAverageArray, slowMovingAverageArray);
 
-      const smaLast = sma[sma.length - 1];
-      const emaLast = ema[ema.length - 1];
+            expect(crossoverResult).toBe("bullish");
+        });
 
-      // EMA should react faster to the spike
-      expect(emaLast).toBeGreaterThan(smaLast);
-    });
-  });
+        test("should indicate bearish position when fast average definitively crosses below slow average", () => {
+            const fastMovingAverageArray = [52, 51, 50, 48];
+            const slowMovingAverageArray = [50, 50, 50, 50];
 
-  describe('extractClosePrices', () => {
-    test('should extract close prices from candles', () => {
-      const candles = generateMockNormalizedCandles('AAPL', 10, 100);
+            const crossoverResult = detectCrossover(fastMovingAverageArray, slowMovingAverageArray);
 
-      const closes = extractClosePrices(candles);
+            expect(crossoverResult).toBe("bearish");
+        });
 
-      expect(closes.length).toBe(10);
-      closes.forEach((price, i) => {
-        expect(price).toBe(candles[i].close);
-      });
-    });
+        test("should indicate hold position when fast average remains strictly above slow average", () => {
+            const fastMovingAverageArray = [55, 56, 57, 58];
+            const slowMovingAverageArray = [50, 50, 50, 50];
 
-    test('should handle empty array', () => {
-      const closes = extractClosePrices([]);
+            const crossoverResult = detectCrossover(fastMovingAverageArray, slowMovingAverageArray);
 
-      expect(closes.length).toBe(0);
-    });
-  });
+            expect(crossoverResult).toBeNull();
+        });
 
-  describe('calculateMovingAverages', () => {
-    test('should calculate both fast and slow MAs', () => {
-      const candles = generateMockNormalizedCandles('AAPL', 60, 100);
-      const fastPeriod = 10;
-      const slowPeriod = 50;
+        test("should indicate hold position when fast average remains strictly below slow average", () => {
+            const fastMovingAverageArray = [45, 44, 43, 42];
+            const slowMovingAverageArray = [50, 50, 50, 50];
 
-      const { fastMA, slowMA } = calculateMovingAverages(
-        candles,
-        fastPeriod,
-        slowPeriod,
-        false
-      );
+            const crossoverResult = detectCrossover(fastMovingAverageArray, slowMovingAverageArray);
 
-      expect(fastMA.length).toBe(candles.length - fastPeriod + 1);
-      expect(slowMA.length).toBe(candles.length - slowPeriod + 1);
-    });
+            expect(crossoverResult).toBeNull();
+        });
 
-    test('should use SMA by default', () => {
-      const candles = generateMockNormalizedCandles('AAPL', 20, 100);
-      const period = 5;
+        test("should indicate hold position when fast average approaches slow average but bounces upward without crossing", () => {
+            const fastMovingAverageArray = [55, 52, 51, 54];
+            const slowMovingAverageArray = [50, 50, 50, 50];
 
-      const { fastMA } = calculateMovingAverages(candles, period, 10, false);
+            const crossoverResult = detectCrossover(fastMovingAverageArray, slowMovingAverageArray);
 
-      const closes = extractClosePrices(candles);
-      const expectedSMA = calculateSMA(closes, period);
+            expect(crossoverResult).toBeNull();
+        });
 
-      assertArraysApproxEqual(fastMA, expectedSMA);
-    });
+        test("should indicate hold position when fast average approaches slow average but bounces downward without crossing", () => {
+            const fastMovingAverageArray = [45, 48, 49, 46];
+            const slowMovingAverageArray = [50, 50, 50, 50];
 
-    test('should use EMA when specified', () => {
-      const candles = generateMockNormalizedCandles('AAPL', 20, 100);
-      const period = 5;
+            const crossoverResult = detectCrossover(fastMovingAverageArray, slowMovingAverageArray);
 
-      const { fastMA } = calculateMovingAverages(candles, period, 10, true);
+            expect(crossoverResult).toBeNull();
+        });
 
-      const closes = extractClosePrices(candles);
-      const expectedEMA = calculateEMA(closes, period);
+        test("should indicate bullish position when averages were exactly equal previously and fast average moves higher", () => {
+            const fastMovingAverageArray = [48, 49, 50, 51];
+            const slowMovingAverageArray = [50, 50, 50, 50];
 
-      assertArraysApproxEqual(fastMA, expectedEMA);
-    });
-  });
+            const crossoverResult = detectCrossover(fastMovingAverageArray, slowMovingAverageArray);
 
-  describe('detectCrossover', () => {
-    test('should detect bullish crossover', () => {
-      // Fast crosses above slow
-      const fastMA = [48, 49, 50, 51]; // Crossing upward
-      const slowMA = [50, 50, 50, 50]; // Flat
+            expect(crossoverResult).toBe("bullish");
+        });
 
-      const crossover = detectCrossover(fastMA, slowMA);
+        test("should indicate bearish position when averages were exactly equal previously and fast average moves lower", () => {
+            const fastMovingAverageArray = [52, 51, 50, 49];
+            const slowMovingAverageArray = [50, 50, 50, 50];
 
-      expect(crossover).toBe('bullish');
-    });
+            const crossoverResult = detectCrossover(fastMovingAverageArray, slowMovingAverageArray);
 
-    test('should detect bearish crossover', () => {
-      // Fast crosses below slow
-      const fastMA = [52, 51, 50, 49]; // Crossing downward
-      const slowMA = [50, 50, 50, 50]; // Flat
+            expect(crossoverResult).toBe("bearish");
+        });
 
-      const crossover = detectCrossover(fastMA, slowMA);
+        test("should indicate hold position if insufficient data exists to determine a trend", () => {
+            const fastMovingAverageArray = [50];
+            const slowMovingAverageArray = [50];
 
-      expect(crossover).toBe('bearish');
-    });
+            const crossoverResult = detectCrossover(fastMovingAverageArray, slowMovingAverageArray);
 
-    test('should return null if no crossover', () => {
-      const fastMA = [55, 56, 57, 58]; // Above, moving up
-      const slowMA = [50, 50, 50, 50]; // Flat
+            expect(crossoverResult).toBeNull();
+        });
 
-      const crossover = detectCrossover(fastMA, slowMA);
+        test("should correctly detect indicators using generated real candle datasets", () => {
+            const bullishHistoricalCandles = generateCrossoverCandles("AAPL", "bullish");
+            const bearishHistoricalCandles = generateCrossoverCandles("AAPL", "bearish");
 
-      expect(crossover).toBeNull();
+            const {fastMA: bullishFastAverage, slowMA: bullishSlowAverage} = calculateMovingAverages(bullishHistoricalCandles, 10, 50);
+            const {fastMA: bearishFastAverage, slowMA: bearishSlowAverage} = calculateMovingAverages(bearishHistoricalCandles, 10, 50);
+
+            const bullishCrossoverResult = detectCrossover(bullishFastAverage, bullishSlowAverage);
+            const bearishCrossoverResult = detectCrossover(bearishFastAverage, bearishSlowAverage);
+
+            expect(bullishCrossoverResult).toBe("bullish");
+            expect(bearishCrossoverResult).toBe("bearish");
+        });
     });
 
-    test('should return null if insufficient data', () => {
-      const fastMA = [50];
-      const slowMA = [50];
+    describe("calculateRSI", () => {
+        test("should return empty array for unimplemented function", () => {
+            const priceValues = [1, 2, 3];
+            const relativeStrengthIndexPeriod = 14;
 
-      const crossover = detectCrossover(fastMA, slowMA);
+            const relativeStrengthIndexArray = calculateRSI(priceValues, relativeStrengthIndexPeriod);
 
-      expect(crossover).toBeNull();
+            expect(relativeStrengthIndexArray).toEqual([]);
+        });
     });
 
-    test('should detect crossover with real candle data', () => {
-      const bullishCandles = generateCrossoverCandles('AAPL', 'bullish');
-      const bearishCandles = generateCrossoverCandles('AAPL', 'bearish');
+    describe("calculateBollingerBands", () => {
+        test("should return empty arrays for unimplemented function", () => {
+            const priceValues = [1, 2, 3];
+            const bollingerBandPeriod = 20;
+            const standardDeviationMultiplier = 2;
 
-      const { fastMA: bullishFast, slowMA: bullishSlow } =
-        calculateMovingAverages(bullishCandles, 10, 50);
+            const bollingerBandsObject = calculateBollingerBands(priceValues, bollingerBandPeriod, standardDeviationMultiplier);
 
-      const { fastMA: bearishFast, slowMA: bearishSlow } =
-        calculateMovingAverages(bearishCandles, 10, 50);
-
-      const bullishCrossover = detectCrossover(bullishFast, bullishSlow);
-      const bearishCrossover = detectCrossover(bearishFast, bearishSlow);
-
-      expect(bullishCrossover).toBe('bullish');
-      expect(bearishCrossover).toBe('bearish');
+            expect(bollingerBandsObject).toEqual({upper: [], middle: [], lower: []});
+        });
     });
 
-    test('should handle exact equality at crossover point', () => {
-      const fastMA = [49, 50, 51];
-      const slowMA = [50, 50, 50];
+    describe("calculateMACD", () => {
+        test("should return empty arrays for unimplemented function", () => {
+            const priceValues = [1, 2, 3];
+            const fastExponentialPeriod = 12;
+            const slowExponentialPeriod = 26;
+            const signalLinePeriod = 9;
 
-      const crossover = detectCrossover(fastMA, slowMA);
+            const movingAverageConvergenceDivergenceObject = calculateMACD(priceValues, fastExponentialPeriod, slowExponentialPeriod, signalLinePeriod);
 
-      expect(crossover).toBe('bullish');
+            expect(movingAverageConvergenceDivergenceObject).toEqual({macd: [], signal: [], histogram: []});
+        });
     });
-  });
 });

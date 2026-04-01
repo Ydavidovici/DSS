@@ -1,2 +1,11 @@
 [install]
 auto = "auto"
+
+[test]
+coverageSkipTestFiles = true
+coveragePathIgnorePatterns = [
+    "node_modules/",
+    "**/*.mock.ts",
+    "generated/",
+    "*.config.js"
+]

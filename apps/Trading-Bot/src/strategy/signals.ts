@@ -1,30 +1,18 @@
-/**
- * Signal generation logic
- * Implements moving average crossover strategy
- */
-
-import type { NormalizedCandle } from '../types/candle';
-import type { Signal, SignalType, SignalResult } from '../types/signal';
+import type {NormalizedCandle} from "../types/candle";
+import type {Signal, SignalType, SignalResult} from "../types/signal";
 import {
-  calculateMovingAverages,
-  detectCrossover,
-  extractClosePrices,
-} from './indicators';
-import { logger } from '../utils/logger';
-import { formatDate } from '../utils/helpers';
+    calculateMovingAverages,
+    detectCrossover,
+    extractClosePrices,
+} from "./indicators";
+import {logger} from "../utils/logger";
+import {formatDate} from "../utils/helpers";
 
 export interface StrategyConfig {
-  /** Fast MA period (default: 10) */
-  fastPeriod: number;
-
-  /** Slow MA period (default: 50) */
-  slowPeriod: number;
-
-  /** Use EMA instead of SMA (default: false) */
-  useEMA?: boolean;
-
-  /** Minimum signal strength (0-1, default: 0.5) */
-  minStrength?: number;
+    fastPeriod: number;
+    slowPeriod: number;
+    useEMA?: boolean;
+    minStrength?: number;
 }
 
 /**
@@ -34,13 +22,12 @@ export interface StrategyConfig {
  * @returns Strength value between 0 and 1
  */
 function calculateSignalStrength(fastMA: number, slowMA: number): number {
-  // Guard against division by zero
-  if (slowMA === 0) {
-    logger.warn('Slow MA is zero, cannot calculate signal strength');
-    return 0;
-  }
+    if (slowMA === 0) {
+        logger.warn("Slow MA is zero, cannot calculate signal strength");
+        return 0;
+    }
 
-  return Math.min(Math.abs(fastMA - slowMA) / slowMA, 1);
+    return Math.min(Math.abs(fastMA - slowMA) / slowMA, 1);
 }
 
 /**
@@ -51,93 +38,86 @@ function calculateSignalStrength(fastMA: number, slowMA: number): number {
  * @returns Trading signal and supporting data
  */
 export function generateSignal(
-  symbol: string,
-  candles: NormalizedCandle[],
-  config: StrategyConfig
+    symbol: string,
+    candles: NormalizedCandle[],
+    config: StrategyConfig,
 ): SignalResult | null {
-  const { fastPeriod, slowPeriod, useEMA = false } = config;
+    const {fastPeriod, slowPeriod, useEMA = false} = config;
 
-  // Validate we have enough data
-  const requiredCandles = Math.max(fastPeriod, slowPeriod) + 1;
-  if (candles.length < requiredCandles) {
-    logger.warn(`Insufficient candles for signal generation`, {
-      symbol,
-      available: candles.length,
-      required: requiredCandles,
-    });
-    return null;
-  }
+    const requiredCandles = Math.max(fastPeriod, slowPeriod) + 1;
+    if (candles.length < requiredCandles) {
+        logger.warn(`Insufficient candles for signal generation`, {
+            symbol,
+            available: candles.length,
+            required: requiredCandles,
+        });
+        return null;
+    }
 
-  // Calculate moving averages
-  const { fastMA, slowMA } = calculateMovingAverages(
-    candles,
-    fastPeriod,
-    slowPeriod,
-    useEMA
-  );
+    const {fastMA, slowMA} = calculateMovingAverages(
+        candles,
+        fastPeriod,
+        slowPeriod,
+        useEMA,
+    );
 
-  // Detect crossover
-  const crossover = detectCrossover(fastMA, slowMA);
+    const crossover = detectCrossover(fastMA, slowMA);
 
-  // Get latest values
-  const latestCandle = candles[candles.length - 1];
-  const currentPrice = latestCandle.close;
-  const currentFastMA = fastMA[fastMA.length - 1];
-  const currentSlowMA = slowMA[slowMA.length - 1];
+    const latestCandle = candles[candles.length - 1];
+    const currentPrice = latestCandle.close;
+    const currentFastMA = fastMA[fastMA.length - 1];
+    const currentSlowMA = slowMA[slowMA.length - 1];
 
-  // Determine signal type
-  let signalType: SignalType = 'hold';
-  let reason = 'No crossover detected';
-  let strength = 0;
+    let signalType: SignalType = "hold";
+    let reason = "No crossover detected";
+    let strength = 0;
 
-  if (crossover === 'bullish') {
-    signalType = 'buy';
-    reason = `Fast MA (${fastPeriod}) crossed above slow MA (${slowPeriod})`;
-    strength = calculateSignalStrength(currentFastMA, currentSlowMA);
-  } else if (crossover === 'bearish') {
-    signalType = 'sell';
-    reason = `Fast MA (${fastPeriod}) crossed below slow MA (${slowPeriod})`;
-    strength = calculateSignalStrength(currentFastMA, currentSlowMA);
-  }
+    if (crossover === "bullish") {
+        signalType = "buy";
+        reason = `Fast MA (${fastPeriod}) crossed above slow MA (${slowPeriod})`;
+        strength = calculateSignalStrength(currentFastMA, currentSlowMA);
+    } else if (crossover === "bearish") {
+        signalType = "sell";
+        reason = `Fast MA (${fastPeriod}) crossed below slow MA (${slowPeriod})`;
+        strength = calculateSignalStrength(currentFastMA, currentSlowMA);
+    }
 
-  // Create signal
-  const signal: Signal = {
-    symbol,
-    type: signalType,
-    timestamp: formatDate(new Date()),
-    strategy: 'moving_average_crossover',
-    strength,
-    price: currentPrice,
-    indicators: {
-      fastMA: currentFastMA,
-      slowMA: currentSlowMA,
-    },
-    reason,
-    metadata: {
-      fastPeriod,
-      slowPeriod,
-      useEMA,
-      crossoverType: crossover,
-      candleCount: candles.length,
-    },
-  };
+    const signal: Signal = {
+        symbol,
+        type: signalType,
+        timestamp: formatDate(new Date()),
+        strategy: "moving_average_crossover",
+        strength,
+        price: currentPrice,
+        indicators: {
+            fastMA: currentFastMA,
+            slowMA: currentSlowMA,
+        },
+        reason,
+        metadata: {
+            fastPeriod,
+            slowPeriod,
+            useEMA,
+            crossoverType: crossover,
+            candleCount: candles.length,
+        },
+    };
 
-  // Log signal generation
-  if (signalType !== 'hold') {
-    logger.signal(symbol, signalType, currentPrice, reason);
-  } else {
-    logger.debug(`No signal for ${symbol}`, { symbol, reason });
-  }
+    if (signalType !== "hold") {
+        logger.signal(symbol, signalType, currentPrice, reason);
+    } else {
+        logger.debug(`No signal for ${symbol}`, {symbol, reason});
+    }
 
-  return {
-    signal,
-    candles: candles.map((c) => ({
-      timestamp: c.timestamp,
-      close: c.close,
-    })),
-    fastMA,
-    slowMA,
-  };
+    return {
+        signal,
+        candles: candles.map((candle) => ({
+            timestamp: candle.timestamp,
+            close: candle.close,
+        })),
+        fastMA,
+        slowMA,
+    };
 }
 
 /**
@@ -148,43 +128,43 @@ export function generateSignal(
  * @returns Array of generated signals
  */
 export function generateMultipleSignals(
-  symbols: string[],
-  candleMap: Map<string, NormalizedCandle[]>,
-  config: StrategyConfig
+    symbols: string[],
+    candleMap: Map<string, NormalizedCandle[]>,
+    config: StrategyConfig,
 ): SignalResult[] {
-  const signals: SignalResult[] = [];
+    const signals: SignalResult[] = [];
 
-  for (const symbol of symbols) {
-    const candles = candleMap.get(symbol);
-    if (!candles || candles.length === 0) {
-      logger.warn(`No candles found for ${symbol}`);
-      continue;
+    for (const symbol of symbols) {
+        const candles = candleMap.get(symbol);
+        if (!candles || candles.length === 0) {
+            logger.warn(`No candles found for ${symbol}`);
+            continue;
+        }
+
+        try {
+            // Sort candles before processing
+            const sortedCandles = [...candles].sort(
+                (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
+            );
+
+            const result = generateSignal(symbol, sortedCandles, config);
+            if (result) {
+                signals.push(result);
+            }
+        } catch (error) {
+            logger.error(`Failed to generate signal for ${symbol}`, {
+                symbol,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
     }
 
-    try {
-      // Sort candles before processing
-      const sortedCandles = [...candles].sort(
-        (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
-      );
+    logger.info(`Generated ${signals.length} signals for ${symbols.length} symbols`, {
+        totalSymbols: symbols.length,
+        signalsGenerated: signals.length,
+    });
 
-      const result = generateSignal(symbol, sortedCandles, config);
-      if (result) {
-        signals.push(result);
-      }
-    } catch (error) {
-      logger.error(`Failed to generate signal for ${symbol}`, {
-        symbol,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
-  logger.info(`Generated ${signals.length} signals for ${symbols.length} symbols`, {
-    totalSymbols: symbols.length,
-    signalsGenerated: signals.length,
-  });
-
-  return signals;
+    return signals;
 }
 
 /**
@@ -194,10 +174,10 @@ export function generateMultipleSignals(
  * @returns Filtered signals
  */
 export function filterSignalsByType(
-  signals: SignalResult[],
-  types: SignalType[]
+    signals: SignalResult[],
+    types: SignalType[],
 ): SignalResult[] {
-  return signals.filter((result) => types.includes(result.signal.type));
+    return signals.filter((result) => types.includes(result.signal.type));
 }
 
 /**
@@ -206,7 +186,7 @@ export function filterSignalsByType(
  * @returns Actionable signals only
  */
 export function getActionableSignals(signals: SignalResult[]): SignalResult[] {
-  return filterSignalsByType(signals, ['buy', 'sell']);
+    return filterSignalsByType(signals, ["buy", "sell"]);
 }
 
 /**
@@ -216,11 +196,11 @@ export function getActionableSignals(signals: SignalResult[]): SignalResult[] {
  * @returns True if signal meets threshold
  */
 export function meetsStrengthThreshold(
-  signal: SignalResult,
-  minStrength: number = 0.5
+    signal: SignalResult,
+    minStrength: number = 0.5,
 ): boolean {
-  const strength = signal.signal.strength || 0;
-  return strength >= minStrength;
+    const strength = signal.signal.strength || 0;
+    return strength >= minStrength;
 }
 
 /**
@@ -230,8 +210,8 @@ export function meetsStrengthThreshold(
  * @returns Strong signals only
  */
 export function filterByStrength(
-  signals: SignalResult[],
-  minStrength: number = 0.5
+    signals: SignalResult[],
+    minStrength: number = 0.5,
 ): SignalResult[] {
-  return signals.filter((signal) => meetsStrengthThreshold(signal, minStrength));
+    return signals.filter((signal) => meetsStrengthThreshold(signal, minStrength));
 }
