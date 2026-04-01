@@ -1,4 +1,3 @@
-import {randomUUID} from "crypto";
 import {SignJWT, jwtVerify, JWTPayload} from "jose";
 
 type TokenType = "access" | "refresh";
@@ -18,7 +17,7 @@ if (!secretString) {
 }
 
 export const jwtConfiguration: JwtConfiguration = {
-    issuer: process.env.JWT_ISSUER ?? "http://dss-auth",
+    issuer: process.env.JWT_ISSUER ?? "dss-auth",
     audience: process.env.JWT_AUDIENCE ?? "dss-services",
     accessTimeToLiveSeconds: Number(process.env.ACCESS_TTL_SEC ?? 900),
     refreshTimeToLiveSeconds: Number(process.env.REFRESH_TTL_SEC ?? 1209600),
@@ -31,7 +30,7 @@ async function signToken(
     subject: string,
     additionalPayload: JWTPayload = {},
     customTimeToLiveSeconds?: number,
-    customAudience?: string
+    customAudience?: string,
 ) {
     const timeToLive = customTimeToLiveSeconds ??
         (tokenType === "access"
@@ -63,14 +62,14 @@ export async function signUserAccessToken(input: {
         "access",
         input.userId,
         {
-            sessionId: randomUUID(),
+            sessionId: crypto.randomUUID(),
             roles: input.roles,
             preferred_username: input.preferred_username,
             email: input.email,
             scope: input.scope,
         },
         input.ttlSec,
-        input.audience
+        input.audience,
     );
 }
 
@@ -83,7 +82,7 @@ export async function signRefreshToken(input: {
         email?: string;
     };
 }) {
-    const jsonTokenIdentifier = randomUUID();
+    const jsonTokenIdentifier = crypto.randomUUID();
     const token = await signToken(
         "refresh",
         input.userId,
@@ -91,10 +90,10 @@ export async function signRefreshToken(input: {
             sessionId: input.sessionId,
             jti: jsonTokenIdentifier,
             ...(input.carry || {}),
-        }
+        },
     );
 
-    return { token, jti: jsonTokenIdentifier };
+    return {token, jti: jsonTokenIdentifier};
 }
 
 export async function signServiceToken(parameters: {
@@ -110,20 +109,20 @@ export async function signServiceToken(parameters: {
         "access",
         "client_auth",
         {
-            sessionId: randomUUID(),
+            sessionId: crypto.randomUUID(),
             scope: scopeString,
             azp: "auth-service",
         },
         parameters.ttlSec ?? 60,
-        parameters.audience ?? "db-service"
+        parameters.audience ?? "db-service",
     );
 }
 
 export async function verifyToken<T extends JWTPayload>(
     token: string,
-    expectedType: TokenType = "access"
+    expectedType: TokenType = "access",
 ) {
-    const { payload } = await jwtVerify(token, jwtConfiguration.secretKey, {
+    const {payload} = await jwtVerify(token, jwtConfiguration.secretKey, {
         issuer: jwtConfiguration.issuer,
         audience: jwtConfiguration.audience,
         clockTolerance: jwtConfiguration.clockToleranceSeconds,

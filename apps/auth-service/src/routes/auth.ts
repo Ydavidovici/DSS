@@ -1,7 +1,4 @@
 import {Router, Request, Response} from "express";
-import axios from "axios";
-import bcrypt from "bcrypt";
-import crypto from "crypto";
 import {signUserAccessToken, signServiceToken, signRefreshToken, verifyToken} from "../utils/jwt";
 import {loginIpLimiter, loginAccountLimiter, resetLimiter, refreshLimiter} from "../middleware/rateLimit";
 import {mailer} from "../utils/mailer";
@@ -11,6 +8,7 @@ const router = Router();
 
 const DB_SERVICE_API_URL = process.env.DB_SERVICE_API_URL!;
 const DB_SERVICE_BASE_URL = process.env.DB_SERVICE_BASE_URL!;
+const AUTH_BASE_URL = process.env.AUTH_BASE_URL;
 const JWT_ISSUER = (process.env.JWT_ISSUER || "").replace(/\/+$/, "");
 
 const COOKIE_SAMESITE = (process.env.COOKIE_SAMESITE as "lax" | "strict" | "none" | undefined) || "lax";
@@ -43,15 +41,22 @@ router.post("/register", async (req: Request, res: Response) => {
     }
 
     try {
-        const passwordHash = await bcrypt.hash(password, 10);
+        const passwordHash = await Bun.password.hash(password);
         const serviceToken = await signServiceToken({scope: "users:create"});
 
-        const {data: responseBody} = await axios.post(
-            `${DB_SERVICE_API_URL}/users`,
-            {username, password_hash: passwordHash, email},
-            {headers: {Authorization: `Bearer ${serviceToken}`}},
-        );
+        const response = await fetch(`${DB_SERVICE_API_URL}/users`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${serviceToken}`,
+            },
+            body: JSON.stringify({username, password_hash: passwordHash, email}),
+        });
 
+        if (!response.ok) {
+            throw new Error(`DB Service returned ${response.status}`);
+        }
+        const responseBody = await response.json();
         const createdUser = responseBody.data;
 
         const emailVerificationToken = await signUserAccessToken({
@@ -61,7 +66,7 @@ router.post("/register", async (req: Request, res: Response) => {
         });
 
         const verificationLink = JWT_ISSUER
-            ? appendQueryParameters(`${JWT_ISSUER}/verify-email`, {token: emailVerificationToken})
+            ? appendQueryParameters(`${AUTH_BASE_URL}/verify-email`, {token: emailVerificationToken})
             : null;
 
         await mailer.sendMail({
@@ -87,11 +92,15 @@ router.get("/verify-email", async (req: Request, res: Response) => {
         }
 
         const serviceToken = await signServiceToken({scope: "users:update"});
-        await axios.patch(
-            `${DB_SERVICE_API_URL}/users/${payload.sub}`,
-            {verified: true, verified_at: new Date().toISOString()},
-            {headers: {Authorization: `Bearer ${serviceToken}`}},
-        );
+
+        await fetch(`${DB_SERVICE_API_URL}/users/${payload.sub}`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${serviceToken}`,
+            },
+            body: JSON.stringify({verified: true, verified_at: new Date().toISOString()}),
+        });
 
         res.send("Email successfully verified.");
     } catch (error) {
@@ -103,11 +112,14 @@ router.post("/forgot-password", resetLimiter, async (req: Request, res: Response
     const {email, redirect_uri} = req.body;
     try {
         const serviceToken = await signServiceToken({scope: "users:read"});
-        const {data: responseBody} = await axios.get(
-            `${DB_SERVICE_API_URL}/users/email/${encodeURIComponent(email)}`,
-            {headers: {Authorization: `Bearer ${serviceToken}`}},
-        );
+        const response = await fetch(`${DB_SERVICE_API_URL}/users/email/${encodeURIComponent(email)}`, {
+            headers: {Authorization: `Bearer ${serviceToken}`},
+        });
 
+        if (!response.ok) {
+            throw new Error("User not found");
+        }
+        const responseBody = await response.json();
         const userRecord = responseBody.data;
 
         const passwordResetToken = await signUserAccessToken({
@@ -127,7 +139,9 @@ router.post("/forgot-password", resetLimiter, async (req: Request, res: Response
             subject: "Reset your password",
             text: emailBodyText,
         });
-    } catch (error) {}
+    } catch (error) {
+        // Intentionally swallow error to prevent email enumeration
+    }
     res.send("If that email exists in our system, we have sent reset instructions.");
 });
 
@@ -143,14 +157,17 @@ router.post("/reset-password", resetLimiter, async (req: Request, res: Response)
             throw new Error("Incorrect token type.");
         }
 
-        const newPasswordHash = await bcrypt.hash(newPassword, 10);
+        const newPasswordHash = await Bun.password.hash(newPassword);
         const serviceToken = await signServiceToken({scope: "users:update"});
 
-        await axios.patch(
-            `${DB_SERVICE_API_URL}/users/${payload.sub}`,
-            {password_hash: newPasswordHash},
-            {headers: {Authorization: `Bearer ${serviceToken}`}},
-        );
+        await fetch(`${DB_SERVICE_API_URL}/users/${payload.sub}`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${serviceToken}`,
+            },
+            body: JSON.stringify({password_hash: newPasswordHash}),
+        });
 
         res.send("Password has been successfully reset.");
     } catch (error) {
@@ -168,18 +185,23 @@ router.post("/login", loginIpLimiter, loginAccountLimiter, async (req: Request, 
     try {
         const serviceToken = await signServiceToken({scope: "users:read"});
 
-        const {data: responseBody} = await axios.get(
-            `${DB_SERVICE_API_URL}/users/email/${encodeURIComponent(email)}`,
-            {headers: {Authorization: `Bearer ${serviceToken}`}},
-        );
+        const response = await fetch(`${DB_SERVICE_API_URL}/users/email/${encodeURIComponent(email)}`, {
+            headers: {Authorization: `Bearer ${serviceToken}`},
+        });
 
+        if (!response.ok) {
+            throw new Error("Invalid credentials.");
+        }
+
+        const responseBody = await response.json();
         const userRecord = responseBody.data;
 
         if (!userRecord || !userRecord.password_hash) {
             throw new Error("Invalid credentials.");
         }
 
-        const isPasswordValid = await bcrypt.compare(password, userRecord.password_hash);
+        // Bun.password.verify handles both Argon2 and your legacy bcrypt hashes natively
+        const isPasswordValid = await Bun.password.verify(password, userRecord.password_hash);
         if (!isPasswordValid) {
             throw new Error("Invalid credentials.");
         }
@@ -197,6 +219,7 @@ router.post("/login", loginIpLimiter, loginAccountLimiter, async (req: Request, 
 
         const {token: refreshToken} = await signRefreshToken({
             userId: String(userRecord.id),
+            // crypto.randomUUID() is globally available in Bun
             sessionId: crypto.randomUUID(),
             carry: {
                 roles: userRecord.roles,
@@ -210,13 +233,7 @@ router.post("/login", loginIpLimiter, loginAccountLimiter, async (req: Request, 
         .json({accessToken});
     } catch (error: any) {
         console.log("=== LOGIN ERROR ===");
-        if (error.response) {
-            console.log("DB Service Status:", error.response.status);
-            console.log("DB Service Data:", error.response.data);
-        } else {
-            console.log("Error Message:", error.message);
-        }
-
+        console.log("Error Message:", error.message);
         res.status(401).json({message: "Invalid email or password."});
     }
 });

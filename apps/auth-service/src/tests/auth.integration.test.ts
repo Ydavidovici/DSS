@@ -1,10 +1,10 @@
 import express from "express";
 import cookieParser from "cookie-parser";
 import request from "supertest";
-import {describe, it, expect, beforeAll, vi} from "vitest";
+import {describe, it, expect, beforeAll, afterAll, mock} from "bun:test";
 
-vi.mock("../utils/mailer", () => ({
-    mailer: {sendMail: vi.fn().mockResolvedValue({})},
+mock.module("../utils/mailer", () => ({
+    mailer: {sendMail: mock().mockResolvedValue({})},
 }));
 
 describe("Auth Service Integration & Nginx Gateway", () => {
@@ -21,11 +21,11 @@ describe("Auth Service Integration & Nginx Gateway", () => {
     let validAccessToken: string;
 
     beforeAll(async () => {
-        process.env.DB_SERVICE_API_URL = "http://localhost:4001/api/v1";
-        process.env.DB_SERVICE_BASE_URL = "http://localhost:4001";
-        process.env.JWT_SECRET = "8f4e92a7b1c6d3f8e5a0b9c4d2e7f1a3b5c8d9e0f4a2b7c6d1e8f3a9b0c5d4e2";
-        process.env.JWT_ISSUER = "http://dss-auth";
-        process.env.JWT_AUDIENCE = "dss-services";
+        process.env.DB_SERVICE_API_URL = "http://127.0.0.1:4001/api/v1";
+        process.env.DB_SERVICE_BASE_URL = "http://127.0.0.1:4001";
+
+        process.env.JWT_ISSUER = "dss-auth";
+        process.env.JWT_AUDIENCE = "db-service";
 
         const authRouter = (await import("../routes/auth")).default;
 
@@ -36,7 +36,6 @@ describe("Auth Service Integration & Nginx Gateway", () => {
     });
 
     it("1. Registers a new user directly in the running db-service", async () => {
-
         const response = await request(expressApp)
         .post("/register")
         .send(testUser)

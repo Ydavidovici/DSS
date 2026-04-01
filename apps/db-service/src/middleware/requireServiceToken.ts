@@ -5,35 +5,39 @@ export interface ServiceRequest extends Request {
     servicePayload?: JWTPayload;
 }
 
-const secretString = process.env.JWT_SECRET;
-if (!secretString) {
-    throw new Error("FATAL: JWT_SECRET environment variable is missing in db-service.");
-}
-const secretKey = new TextEncoder().encode(secretString);
-
-const expectedIssuer = process.env.JWT_ISSUER ?? "http://dss-auth";
-const expectedAudience = process.env.JWT_AUDIENCE ?? "db-service";
+export const validateSecret = () => {
+    if (!process.env.JWT_SECRET) {
+        throw new Error("FATAL: JWT_SECRET environment variable is missing in db-service.");
+    }
+    return new TextEncoder().encode(process.env.JWT_SECRET);
+};
 
 export const requireServiceToken = async (
     req: ServiceRequest,
     res: Response,
     next: NextFunction,
-): Promise<any> => {
+) => {
     try {
+        const secretKey = validateSecret();
+        const expectedIssuer = process.env.JWT_ISSUER ?? "http://dss-auth";
+        const expectedAudience = process.env.JWT_AUDIENCE ?? "db-service";
+
         const authHeader = req.headers.authorization;
 
         if (!authHeader?.startsWith("Bearer ")) {
-            return res.status(401).json({
+            res.status(401).json({
                 error: {code: "UNAUTHORIZED", message: "Missing or malformed Authorization header"},
             });
+            return;
         }
 
         const token = authHeader.split(" ")[1];
 
         if (!token) {
-            return res.status(401).json({
+            res.status(401).json({
                 error: {code: "UNAUTHORIZED", message: "Token value is missing"},
             });
+            return;
         }
 
         const {payload} = await jwtVerify(token, secretKey, {
@@ -42,18 +46,17 @@ export const requireServiceToken = async (
         });
 
         if (payload.sub !== "client_auth") {
-            return res.status(403).json({
+            res.status(403).json({
                 error: {code: "FORBIDDEN", message: "Invalid token type. Expected service token."},
             });
+            return;
         }
 
         req.servicePayload = payload;
-
         next();
     } catch (error) {
         console.error("JWT Verification Failed:", error);
-
-        return res.status(401).json({
+        res.status(401).json({
             error: {code: "UNAUTHORIZED", message: "Invalid or expired service token"},
         });
     }

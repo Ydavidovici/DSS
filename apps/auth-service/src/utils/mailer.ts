@@ -1,8 +1,5 @@
 import nodemailer from "nodemailer";
-import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
-
-dotenv.config();
 
 export const mailer = nodemailer.createTransport({
     host: process.env.SMTP_HOST,

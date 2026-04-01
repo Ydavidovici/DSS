@@ -1,21 +1,26 @@
 import {rateLimit} from "express-rate-limit";
-import crypto from "crypto";
 import type {Request, Response} from "express";
 
-const baseOpts = {
+const baseRateLimitOptions = {
     standardHeaders: true,
     legacyHeaders: false,
 };
 
-const norm = (s?: string) => (s || "").trim().toLowerCase();
-const hashToken = (s: string) => crypto.createHash("sha256").update(s).digest("hex");
+const normalizeString = (inputString?: string) => (inputString || "").trim().toLowerCase();
+
+const hashToken = (tokenString: string) => {
+    const hasher = new Bun.CryptoHasher("sha256");
+    hasher.update(tokenString);
+    return hasher.digest("hex");
+};
+
 const loginWasSuccessful = (_req: Request, res: Response | any) => res.statusCode < 400;
 
-const getIp = (req: Request) => req.ip || "127.0.0.1";
+const getClientIpAddress = (req: Request) => req.ip || "127.0.0.1";
 
 export const loginIpLimiter = rateLimit({
-    ...baseOpts,
-    windowMs: 15 * 60 * 1000,
+    ...baseRateLimitOptions,
+    windowMs: 15 * 60 * 1000, // 15 minutes
     limit: 10,
     requestWasSuccessful: loginWasSuccessful,
     skipSuccessfulRequests: true,
@@ -23,12 +28,12 @@ export const loginIpLimiter = rateLimit({
 });
 
 export const loginAccountLimiter = rateLimit({
-    ...baseOpts,
+    ...baseRateLimitOptions,
     windowMs: 15 * 60 * 1000,
     limit: 10,
     keyGenerator: (req) => {
-        const u = norm((req.body && (req.body.username || req.body.email)) as string);
-        return u || `anon:${getIp(req)}`; // Fallback to raw IP
+        const usernameOrEmail = normalizeString((req.body && (req.body.username || req.body.email)) as string);
+        return usernameOrEmail || `anonymousUser:${getClientIpAddress(req)}`;
     },
     requestWasSuccessful: loginWasSuccessful,
     skipSuccessfulRequests: true,
@@ -36,23 +41,25 @@ export const loginAccountLimiter = rateLimit({
 });
 
 export const resetLimiter = rateLimit({
-    ...baseOpts,
+    ...baseRateLimitOptions,
     windowMs: 15 * 60 * 1000,
     limit: 5,
     keyGenerator: (req) => {
-        const email = norm(req.body?.email);
-        return email || `ip:${getIp(req)}`;
+        const normalizedEmail = normalizeString(req.body?.email);
+        return normalizedEmail || `ipAddress:${getClientIpAddress(req)}`;
     },
     message: "Too many reset attempts. Please try again later.",
 });
 
 export const refreshLimiter = rateLimit({
-    ...baseOpts,
-    windowMs: 5 * 60 * 1000,
+    ...baseRateLimitOptions,
+    windowMs: 5 * 60 * 1000, // 5 minutes
     limit: 20,
     keyGenerator: (req) => {
-        const raw = req.cookies?.refresh_token as string | undefined;
-        return raw ? `rt:${hashToken(raw)}` : `ip:${getIp(req)}`;
+        const providedRefreshToken = req.cookies?.refresh_token as string | undefined;
+        return providedRefreshToken
+            ? `refreshToken:${hashToken(providedRefreshToken)}`
+            : `ipAddress:${getClientIpAddress(req)}`;
     },
     message: "Too many refresh attempts. Please try again later.",
 });

@@ -1,47 +1,8 @@
 import express from "express";
 import request from "supertest";
-import {describe, it, expect, beforeAll, vi} from "vitest";
+import {describe, it, expect, beforeAll, beforeEach, afterEach, afterAll} from "bun:test";
 import {SignJWT} from "jose";
-
-vi.mock("../modules/users/user.service", () => {
-    const mockUsers = new Map<string, any>();
-    const USER_ID = "00000000-0000-0000-0000-000000000001";
-
-    mockUsers.set(USER_ID, {
-        id: USER_ID,
-        first_name: "Alice",
-        last_name: "Smith",
-        email: "alice@example.com",
-        password_hash: "mocked_bcrypt_hash",
-        verified: true,
-    });
-
-    return {
-        createUser: vi.fn(async (data) => {
-            if (data.email === "dupe@example.com") {
-                const err: any = new Error("duplicate");
-                err.code = "23505";
-                throw err;
-            }
-            return {id: "new-uuid-123", ...data};
-        }),
-        getUserById: vi.fn(async (id) => mockUsers.get(id)),
-        getUserByEmail: vi.fn(async (email) => {
-            return Array.from(mockUsers.values()).find(u => u.email === email);
-        }),
-        updateUser: vi.fn(async (id, data) => {
-            if (!mockUsers.has(id)) {
-                return undefined;
-            }
-            const updated = {...mockUsers.get(id), ...data};
-            mockUsers.set(id, updated);
-            return updated;
-        }),
-        deleteUser: vi.fn(async (id) => {
-            return mockUsers.delete(id);
-        }),
-    };
-});
+import {db, closeDB} from "../config/db";
 
 describe("[db-service] Users End-to-End (Express + HS256 Service Tokens)", () => {
     let app: express.Express;
@@ -50,6 +11,8 @@ describe("[db-service] Users End-to-End (Express + HS256 Service Tokens)", () =>
     const ISS = "dss-auth";
     const AUD = "db-service";
     const USER_ID = "00000000-0000-0000-0000-000000000001";
+
+    const TEST_EMAILS = ["alice@example.com", "dupe@example.com", "bob@example.com"];
 
     beforeAll(async () => {
         process.env.JWT_SECRET = TEST_SECRET;
@@ -61,6 +24,33 @@ describe("[db-service] Users End-to-End (Express + HS256 Service Tokens)", () =>
 
         const userRoutes = (await import("../modules/users/user.routes")).default;
         app.use("/internal/users", userRoutes);
+    });
+
+    beforeEach(async () => {
+        await db("users").whereIn("email", TEST_EMAILS).delete();
+
+        await db("users").insert([
+            {
+                id: USER_ID,
+                email: "alice@example.com",
+                password_hash: "hashed_alice_pass",
+                verified: true,
+            },
+            {
+                id: "00000000-0000-0000-0000-000000000002",
+                email: "dupe@example.com",
+                password_hash: "x123",
+                verified: true,
+            },
+        ]);
+    });
+
+    afterEach(async () => {
+        await db("users").whereIn("email", TEST_EMAILS).delete();
+    });
+
+    afterAll(async () => {
+        await closeDB();
     });
 
     async function signSvcToken({
@@ -101,7 +91,6 @@ describe("[db-service] Users End-to-End (Express + HS256 Service Tokens)", () =>
     });
 
     it("403 when token subject is not client_auth (e.g., a user access token)", async () => {
-        // Simulating a token where the subject is a User ID instead of 'client_auth'
         const userToken = await signSvcToken({sub: "some-user-id"});
         await request(app)
         .get("/internal/users/email/alice@example.com")
@@ -182,5 +171,32 @@ describe("[db-service] Users End-to-End (Express + HS256 Service Tokens)", () =>
         .delete(`/internal/users/${USER_ID}`)
         .set("Authorization", `Bearer ${token}`)
         .expect(404);
+    });
+
+    it("GET /internal/users/:id returns user", async () => {
+        const token = await signSvcToken();
+        const res = await request(app)
+        .get(`/internal/users/${USER_ID}`)
+        .set("Authorization", `Bearer ${token}`)
+        .expect(200);
+
+        expect(res.body.data.id).toBe(USER_ID);
+    });
+
+    it("GET /internal/users/:id returns 404 for unknown users", async () => {
+        const token = await signSvcToken();
+        await request(app)
+        .get(`/internal/users/00000000-0000-0000-0000-000000000099`)
+        .set("Authorization", `Bearer ${token}`)
+        .expect(404);
+    });
+
+    it("PATCH /internal/users/:id returns 400 when no valid fields provided", async () => {
+        const token = await signSvcToken();
+        await request(app)
+        .patch(`/internal/users/${USER_ID}`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({id: USER_ID})
+        .expect(400);
     });
 });

@@ -1,4 +1,3 @@
-import "dotenv/config";
 import express from "express";
 import helmet from "helmet";
 import cors, {CorsOptions} from "cors";
@@ -36,7 +35,6 @@ app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({extended: false}));
 app.use(cookieParser());
-
 app.use(cors(corsOptionsDelegate));
 app.options("*", cors(corsOptionsDelegate));
 
@@ -49,7 +47,7 @@ app.use("/", authRouter);
 
 app.use((_req, res) => res.status(404).send("Not found"));
 
-app.use((err: any,  _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error(err);
     res.status(500).send("Internal server error");
 });

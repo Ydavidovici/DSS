@@ -1,10 +1,7 @@
-import bcrypt from "bcrypt";
-
 const plainTextPassword = "password";
-const saltRounds = 10;
 
 const generateHash = async () => {
-    const hash = await bcrypt.hash(plainTextPassword, saltRounds);
+    const hash = await Bun.password.hash(plainTextPassword);
     console.log("Your database hash is:");
     console.log(hash);
 };

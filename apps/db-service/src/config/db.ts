@@ -1,8 +1,12 @@
 import knex from "knex";
 
-if (!process.env.DATABASE_URL) {
-    throw new Error("FATAL: DATABASE_URL environment variable is missing.");
-}
+export const validateConfig = () => {
+    if (!process.env.DATABASE_URL) {
+        throw new Error("FATAL: DATABASE_URL environment variable is missing.");
+    }
+};
+
+validateConfig();
 
 export const db = knex({
     client: "pg",
