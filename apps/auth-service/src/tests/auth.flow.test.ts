@@ -20,6 +20,8 @@ const decodeJwtPayload = (token: string) => {
     return JSON.parse(Buffer.from(base64, "base64").toString());
 };
 
+// FIXME: migrate these for bun reqs, not express
+
 describe("Authentication Flows", () => {
     let expressApp: express.Express;
 

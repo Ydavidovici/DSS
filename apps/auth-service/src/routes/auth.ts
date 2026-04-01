@@ -34,6 +34,8 @@ function appendQueryParameters(baseUrl: string, parameters: Record<string, strin
     return urlObject.toString();
 }
 
+// FIXME: all of these routes should be moved to a bun server, not express
+
 router.post("/register", async (req: Request, res: Response) => {
     const {username, password, email} = req.body;
     if (!username || !password || !email) {

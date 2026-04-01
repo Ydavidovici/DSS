@@ -2,6 +2,8 @@ import {Router} from "express";
 import * as userController from "./user.controller";
 import {requireServiceToken} from "../../middleware/requireServiceToken";
 
+// FIXME: migrate these for bun reqs, not express
+
 const router = Router();
 
 router.use(requireServiceToken);

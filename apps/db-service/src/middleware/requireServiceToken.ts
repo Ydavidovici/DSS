@@ -5,6 +5,8 @@ export interface ServiceRequest extends Request {
     servicePayload?: JWTPayload;
 }
 
+// FIXME: migrate these for bun reqs, not express
+
 export const validateSecret = () => {
     if (!process.env.JWT_SECRET) {
         throw new Error("FATAL: JWT_SECRET environment variable is missing in db-service.");

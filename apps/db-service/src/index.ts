@@ -3,6 +3,8 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 
+// FIXME: migrate these for bun reqs, not express
+
 import userRoutes from "./modules/users/user.routes";
 import { requireServiceToken } from "./middleware/requireServiceToken";
 
