@@ -107,6 +107,30 @@ describe("Signal Generation", () => {
             expect(signalResult).not.toBeNull();
             expect(signalResult?.signal.metadata?.useEMA).toBe(true);
         });
+
+        test("should handle zero slowMA gracefully", () => {
+            const historicalCandles = generateMockNormalizedCandles("AAPL", 60, 0, "sideways");
+
+            historicalCandles.forEach(candle => {
+                candle.close = 0;
+            });
+
+            historicalCandles[9].close = -40;
+            historicalCandles[49].close = -10;
+            historicalCandles[59].close = 10;
+
+            const strategyConfiguration = {
+                fastPeriod: 10,
+                slowPeriod: 50,
+                useEMA: false,
+            };
+
+            const signalResult = generateSignal("AAPL", historicalCandles, strategyConfiguration);
+
+            expect(signalResult).not.toBeNull();
+            expect(signalResult?.signal.type).toBe("buy");
+            expect(signalResult?.signal.strength).toBe(0);
+        });
     });
 
     describe("generateMultipleSignals", () => {
@@ -158,6 +182,59 @@ describe("Signal Generation", () => {
             };
 
             const signalResultsArray = generateMultipleSignals(tradingSymbols, historicalCandleMap, strategyConfiguration);
+
+            expect(signalResultsArray.length).toBe(0);
+        });
+
+        test("should catch and log errors during signal generation", () => {
+            const tradingSymbols = ["AAPL", "ERROR_SYMBOL"];
+            const historicalCandleMap = new Map();
+
+            historicalCandleMap.set("AAPL", generateMockNormalizedCandles("AAPL", 60, 100));
+
+            const badCandles: any = [
+                {timestamp: undefined, close: 100},
+                {timestamp: undefined, close: 105},
+            ];
+            historicalCandleMap.set("ERROR_SYMBOL", badCandles);
+
+            const strategyConfiguration = {
+                fastPeriod: 10,
+                slowPeriod: 50,
+                useEMA: false,
+            };
+
+            const signalResultsArray = generateMultipleSignals(
+                tradingSymbols,
+                historicalCandleMap,
+                strategyConfiguration,
+            );
+
+            expect(signalResultsArray.length).toBe(1);
+            expect(signalResultsArray[0].signal.symbol).toBe("AAPL");
+        });
+
+        test("should catch and log non-Error objects during signal generation", () => {
+            const tradingSymbols = ["THROW_STRING"];
+            const historicalCandleMap = new Map();
+
+            const badCandles: any = [
+                {timestamp: {getTime: () => { throw "String error"; }}},
+                {timestamp: {getTime: () => { throw "String error"; }}},
+            ];
+            historicalCandleMap.set("THROW_STRING", badCandles);
+
+            const strategyConfiguration = {
+                fastPeriod: 10,
+                slowPeriod: 50,
+                useEMA: false,
+            };
+
+            const signalResultsArray = generateMultipleSignals(
+                tradingSymbols,
+                historicalCandleMap,
+                strategyConfiguration,
+            );
 
             expect(signalResultsArray.length).toBe(0);
         });
