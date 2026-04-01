@@ -1,6 +1,8 @@
 import {db} from "../../config/db";
 import {User, CreateUserDTO, UpdateUserDTO} from "./user.model";
 
+// FIXME: lets make these use transactions
+
 export const createUser = async (data: CreateUserDTO): Promise<User> => {
     const [user] = await db<User>("users").insert(data).returning("*");
 
