@@ -2,6 +2,8 @@ import {SignJWT, jwtVerify, JWTPayload} from "jose";
 
 type TokenType = "access" | "refresh";
 
+// FIXME: lets move this to buns jsonwebtoken util
+
 export interface JwtConfiguration {
     issuer: string;
     audience: string;
