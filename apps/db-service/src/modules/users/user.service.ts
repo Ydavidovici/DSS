@@ -1,31 +1,36 @@
-import {db} from "../../config/db";
+import {Knex} from "knex";
+import {db as databaseConnection} from "../../config/db";
 import {User, CreateUserDTO, UpdateUserDTO} from "./user.model";
 
-// FIXME: lets make these use transactions
+export const createUser = async (userDataToInsert: CreateUserDTO, databaseTransaction?: Knex.Transaction): Promise<User> => {
+    const activeDatabaseClient = databaseTransaction || databaseConnection;
 
-export const createUser = async (data: CreateUserDTO): Promise<User> => {
-    const [user] = await db<User>("users").insert(data).returning("*");
+    const [createdUser] = await activeDatabaseClient<User>("users").insert(userDataToInsert).returning("*");
 
-    if (!user) {
+    if (!createdUser) {
         throw new Error("Database failed to return the created user.");
     }
 
-    return user;
+    return createdUser;
 };
 
-export const getUserById = async (id: string): Promise<User | undefined> => {
-    return db<User>("users").where({id}).first();
+export const getUserById = async (userIdentifier: string, databaseTransaction?: Knex.Transaction): Promise<User | undefined> => {
+    const activeDatabaseClient = databaseTransaction || databaseConnection;
+    return activeDatabaseClient<User>("users").where({id: userIdentifier}).first();
 };
 
-export const getUserByEmail = async (email: string): Promise<User | undefined> => {
-    return db<User>("users").where({email}).first();
+export const getUserByEmail = async (userEmailAddress: string, databaseTransaction?: Knex.Transaction): Promise<User | undefined> => {
+    const activeDatabaseClient = databaseTransaction || databaseConnection;
+    return activeDatabaseClient<User>("users").where({email: userEmailAddress}).first();
 };
 
-export const updateUser = async (id: string, data: UpdateUserDTO): Promise<User | undefined> => {
-    const [updatedUser] = await db<User>("users")
-    .where({id})
+export const updateUser = async (userIdentifier: string, userDataToUpdate: UpdateUserDTO, databaseTransaction?: Knex.Transaction): Promise<User | undefined> => {
+    const activeDatabaseClient = databaseTransaction || databaseConnection;
+
+    const [updatedUser] = await activeDatabaseClient<User>("users")
+    .where({id: userIdentifier})
     .update({
-        ...data,
+        ...userDataToUpdate,
         updated_at: new Date(),
     })
     .returning("*");
@@ -33,7 +38,8 @@ export const updateUser = async (id: string, data: UpdateUserDTO): Promise<User 
     return updatedUser;
 };
 
-export const deleteUser = async (id: string): Promise<boolean> => {
-    const rowsDeleted = await db("users").where({id}).del();
-    return rowsDeleted > 0;
+export const deleteUser = async (userIdentifier: string, databaseTransaction?: Knex.Transaction): Promise<boolean> => {
+    const activeDatabaseClient = databaseTransaction || databaseConnection;
+    const numberOfDeletedRows = await activeDatabaseClient("users").where({id: userIdentifier}).del();
+    return numberOfDeletedRows > 0;
 };
