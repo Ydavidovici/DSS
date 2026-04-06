@@ -21,8 +21,8 @@ describe("Auth Service Integration & Nginx Gateway", () => {
     let validAccessToken: string;
 
     beforeAll(async () => {
-        process.env.DB_SERVICE_API_URL = "http://127.0.0.1:4001/api/v1";
-        process.env.DB_SERVICE_BASE_URL = "http://127.0.0.1:4001";
+        process.env.DB_SERVICE_API_URL ||= "http://127.0.0.1:4001/api/v1";
+        process.env.DB_SERVICE_BASE_URL ||= "http://127.0.0.1:4001";
 
         process.env.JWT_ISSUER = "dss-auth";
         process.env.JWT_AUDIENCE = "db-service";
