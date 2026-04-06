@@ -5,8 +5,6 @@ import {SignJWT} from "jose";
 import {db, closeDB} from "../config/db";
 
 describe("[db-service] Users End-to-End", () => {
-    // FIXME: migrate these for bun reqs, not express
-
     let app: express.Express;
 
     const TEST_SECRET = "super_secret_test_key_that_is_long_enough";

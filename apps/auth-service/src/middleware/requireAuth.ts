@@ -11,8 +11,6 @@ export interface AuthRequest extends Request {
     };
 }
 
-// FIXME: migrate these for bun reqs, not express
-
 export function requireAuth(expectedRole?: string) {
     return async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
