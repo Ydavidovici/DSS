@@ -56,7 +56,7 @@ router.post("/register", async (req: Request, res: Response) => {
         if (!response.ok) {
             throw new Error(`DB Service returned ${response.status}`);
         }
-        const responseBody = await response.json();
+        const responseBody = (await response.json()) as any;
         const createdUser = responseBody.data;
 
         const emailVerificationToken = await signUserAccessToken({
@@ -119,7 +119,7 @@ router.post("/forgot-password", resetLimiter, async (req: Request, res: Response
         if (!response.ok) {
             throw new Error("User not found");
         }
-        const responseBody = await response.json();
+        const responseBody = (await response.json()) as any;
         const userRecord = responseBody.data;
 
         const passwordResetToken = await signUserAccessToken({
@@ -193,7 +193,7 @@ router.post("/login", loginIpLimiter, loginAccountLimiter, async (req: Request, 
             throw new Error("Invalid credentials.");
         }
 
-        const responseBody = await response.json();
+        const responseBody = (await response.json()) as any;
         const userRecord = responseBody.data;
 
         if (!userRecord || !userRecord.password_hash) {

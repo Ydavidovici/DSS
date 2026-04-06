@@ -36,7 +36,7 @@ describe("Authentication Flows", () => {
         process.env.JWT_AUDIENCE = "db-service";
 
         fetchMock = mock();
-        global.fetch = fetchMock;
+        global.fetch = fetchMock as any;
 
         const authRouter = (await import("../routes/auth")).default;
 
@@ -79,7 +79,7 @@ describe("Authentication Flows", () => {
         expect(response.text).toMatch(/User created/i);
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
-        const [url, options] = fetchMock.mock.calls[0];
+        const [url, options] = fetchMock.mock.calls[0]!;
 
         expect(url).toContain("/users");
         expect(options.method).toBe("POST");
@@ -184,7 +184,7 @@ describe("Authentication Flows", () => {
         expect(response.text).toMatch(/Email successfully verified/);
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
-        const [url, options] = fetchMock.mock.calls[0];
+        const [url, options] = fetchMock.mock.calls[0]!;
         expect(url).toContain("/users/u1");
         expect(options.method).toBe("PATCH");
         expect(JSON.parse(options.body).verified).toBe(true);
@@ -211,7 +211,7 @@ describe("Authentication Flows", () => {
         .expect(200);
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
-        const [url, options] = fetchMock.mock.calls[0];
+        const [url, options] = fetchMock.mock.calls[0]!;
         expect(url).toContain("/users/u1");
         expect(options.method).toBe("PATCH");
         expect(JSON.parse(options.body).password_hash).toBeString();
@@ -236,7 +236,7 @@ describe("Authentication Flows", () => {
         expect(response.text).toMatch(/If that email exists/i);
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
-        const [url, options] = fetchMock.mock.calls[0];
+        const [url, options] = fetchMock.mock.calls[0]!;
         expect(url).toMatch(/\/users\/email\/alice%40example\.com$/);
 
         const authHeader = (options.headers as any)["Authorization"];
