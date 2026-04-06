@@ -7,8 +7,6 @@ mock.module("../utils/mailer", () => ({
     mailer: {sendMail: mock().mockResolvedValue({})},
 }));
 
-// FIXME: migrate these for bun reqs, not express
-
 describe("Auth Service Integration & Nginx Gateway", () => {
     let expressApp: express.Express;
 
