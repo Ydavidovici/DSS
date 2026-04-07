@@ -2,7 +2,7 @@
     "tabWidth": 4,
     "useTabs": true,
     "htmlWhitespaceSensitivity": "ignore",
-    "printWidth": 120,
+    "printWidth": 100000,
     "singleQuote": false,
     "trailingComma": "es5",
     "bracketSpacing": false
