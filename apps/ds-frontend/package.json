@@ -1,18 +1,18 @@
 {
-  "name": "ds-frontend",
-  "version": "1.0.0",
-  "type": "module",
-  "main": "server.js",
-  "scripts": {
-    "dev": "bun run server.js",
-    "start": "bun run server.js",
-    "format": "prettier --write \"**/*.{js,ts,html,css,json,md}\""
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "vite": "^8.0.3"
-  },
-  "devDependencies": {
-    "prettier": "^3.5.3"
-  }
+	"name": "ds-frontend",
+	"version": "1.0.0",
+	"type": "module",
+	"main": "server.js",
+	"scripts": {
+		"dev": "bun run server.js",
+		"start": "bun run server.js",
+		"format": "prettier --write \"**/*.{js,ts,html,css,json,md}\""
+	},
+	"dependencies": {
+		"express": "^4.18.2",
+		"vite": "^8.0.3"
+	},
+	"devDependencies": {
+		"prettier": "^3.5.3"
+	}
 }

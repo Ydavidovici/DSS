@@ -1,8 +1,9 @@
 {
-  "tabWidth": 4,
-  "useTabs": false,
-  "htmlWhitespaceSensitivity": "ignore",
-  "printWidth": 80,
-  "singleQuote": false,
-  "trailingComma": "es5"
+    "tabWidth": 4,
+    "useTabs": true,
+    "htmlWhitespaceSensitivity": "ignore",
+    "printWidth": 120,
+    "singleQuote": false,
+    "trailingComma": "es5",
+    "bracketSpacing": false
 }
